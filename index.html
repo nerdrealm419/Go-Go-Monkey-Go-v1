@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Go! Go! Monkey, Go!</title>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: pointer;}
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const SCALE = 1.8;
+
+        // --- Configuration (All values scaled) ---
+        const MONKEY_ACCELERATION = 950 * SCALE, MONKEY_MAX_SPEED = 420 * SCALE, FRICTION = 0.89, GRAVITY = 1800 * SCALE, JUMP_STRENGTH = 820 * SCALE;
+        const VINE_COUNT = 10, VINE_MIN_WIDTH = 140 * SCALE, VINE_MAX_WIDTH = 220 * SCALE, VINE_VERTICAL_SPACING = 155 * SCALE, VINE_FALL_TRIGGER_TIME = 15, VINE_JUMPS_TO_BREAK = 3;
+        const VINE_HORIZONTAL_REACH = 250 * SCALE, VINE_FALL_SPEED = 800 * SCALE;
+        const BANANA_SPAWN_CHANCE = 0.5, BANANA_POINTS = 750;
+        const DAY_NIGHT_DISTANCE = 12000 * SCALE;
+        const DIFFICULTY_SCORE_INTERVAL = 7500;
+        const VINE_MIN_HORIZONTAL_OFFSET = 60 * SCALE;
+        const HIGH_SCORE_KEY = 'gogomonkeygo_highscores';
+
+        let dpr = window.devicePixelRatio||1; function resize(){dpr=window.devicePixelRatio||1;canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;ctx.scale(dpr,dpr);if(skySystem)skySystem.init(true);}
+        window.addEventListener('resize', resize);
+
+        let logicalWidth, logicalHeight;
+        let lastTime = 0, gameState = 'start', scrollY = 0, score = 0, gameTime = 0, animationFrameId;
+        let isNewHighScore = false;
+        // --- NEW: Device detection ---
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+        let showInstructions = false;
+        const menuButtons = { start: null, instructions: null, closeInstructions: null };
+
+        const keys = {a:0,d:0,ArrowLeft:0,ArrowRight:0};
+        window.addEventListener('keydown', e=>{if(keys.hasOwnProperty(e.key))keys[e.key]=1; if((gameState==='start'||gameState==='gameOver')&&(e.key===' '||e.key==='Enter'))init();});
+        window.addEventListener('keyup', e=>{if(keys.hasOwnProperty(e.key))keys[e.key]=0;});
+        
+        function handleMenuInteraction(x, y) {
+            if (gameState !== 'start') return;
+            const scaledX = x * dpr; const scaledY = y * dpr;
+
+            if (showInstructions) {
+                const btn = menuButtons.closeInstructions;
+                if (btn && scaledX > btn.x && scaledX < btn.x + btn.w && scaledY > btn.y && scaledY < btn.y + btn.h) {
+                    showInstructions = false;
+                }
+            } else {
+                const startBtn = menuButtons.start;
+                if (startBtn && scaledX > startBtn.x && scaledX < startBtn.x + startBtn.w && scaledY > startBtn.y && scaledY < startBtn.y + startBtn.h) {
+                    init(); return;
+                }
+                const instrBtn = menuButtons.instructions;
+                if (instrBtn && scaledX > instrBtn.x && scaledX < instrBtn.x + instrBtn.w && scaledY > instrBtn.y && scaledY < instrBtn.y + instrBtn.h) {
+                    showInstructions = true;
+                }
+            }
+        }
+
+        const handleStart = (e) => {
+             e.preventDefault();
+             if (gameState === 'start') { const touch = e.touches[0]; handleMenuInteraction(touch.clientX, touch.clientY); return; }
+             if (gameState === 'gameOver') { init(); return; }
+             const touchX = e.touches[0].clientX;
+             if (touchX < window.innerWidth / 2) { keys.a = 1; keys.d = 0; keys.ArrowLeft=1; keys.ArrowRight=0; } 
+             else { keys.d = 1; keys.a = 0; keys.ArrowRight=1; keys.ArrowLeft=0; }
+        };
+        const handleEnd = (e) => { e.preventDefault(); keys.a = 0; keys.d = 0; keys.ArrowLeft=0; keys.ArrowRight=0; };
+        canvas.addEventListener('click', (e)=>{
+            if (gameState === 'start') handleMenuInteraction(e.clientX, e.clientY);
+            else if (gameState === 'gameOver') init();
+        });
+        canvas.addEventListener('touchstart', handleStart, { passive: false });
+        canvas.addEventListener('touchend', handleEnd, { passive: false });
+        canvas.addEventListener('touchcancel', handleEnd, { passive: false });
+
+        const particles = [], vinePool = [], bananaPool = [], bananaConfetti = [];
+
+        const skySystem = {
+            stars: [], clouds: [], shootingStars: [],
+            generateCloudPuffs() {
+                const puffs = []; const puffCount = Math.floor(Math.random() * 4) + 5; const baseWidth = (Math.random() * 80 + 100) * SCALE;
+                for (let i = 0; i < puffCount; i++) { puffs.push({ dx: (Math.random() - 0.5) * baseWidth * 0.8, dy: (Math.random() - 0.5) * 25 * SCALE, r: (Math.random() * 0.4 + 0.6) * (baseWidth / (puffCount/2.5)) }); }
+                return { puffs, baseWidth };
+            },
+            init(isResize = false) {
+                logicalWidth = innerWidth; logicalHeight = innerHeight;
+                if(isResize && this.stars.length > 0) return;
+                this.stars = []; this.clouds = []; this.shootingStars = [];
+                for(let i=0; i<300; i++) this.stars.push({x:Math.random()*logicalWidth,y:Math.random()*logicalHeight,z:Math.random()*0.5+0.1,b:Math.random()*0.8+0.2});
+                for(let i=0; i<20; i++) {
+                    const cloudData = this.generateCloudPuffs();
+                    this.clouds.push({x: Math.random()*logicalWidth, y: Math.random()*logicalHeight, z: Math.random()*0.5+0.2, w: cloudData.baseWidth, puffs: cloudData.puffs});
+                }
+            },
+            update(dt, nightlight) {
+                this.clouds.forEach(c => { c.x += 15 * c.z * dt * SCALE; if(c.x - c.w > logicalWidth) c.x = -c.w * 2; });
+                if (nightlight > 0.6 && Math.random() < 0.004) { this.shootingStars.push({ x: Math.random() * logicalWidth * 1.2, y: Math.random() * logicalHeight * 0.4, len: (Math.random() * 150 + 120)*SCALE, speed: (Math.random() * 400 + 500)*SCALE, life: 1.2, angle: Math.PI * 0.35 + Math.random() * 0.1 }); }
+                this.shootingStars.forEach((s, i) => { s.x -= s.speed * dt; s.y += s.speed * Math.tan(s.angle) * dt; s.life -= dt; if (s.life <= 0) this.shootingStars.splice(i, 1); });
+            },
+            draw(gameClock) {
+                const daylight = 0.5 - Math.cos(gameClock * 2 * Math.PI) * 0.5; const nightlight = 1 - daylight;
+                const topH=205+35*daylight, topS=50+40*daylight, topL=10+55*daylight; const botH=220+20*daylight, botS=50+20*daylight, botL=25+45*daylight;
+                const grad=ctx.createLinearGradient(0,0,0,logicalHeight); grad.addColorStop(0,`hsl(${topH},${topS}%,${topL}%)`); grad.addColorStop(1,`hsl(${botH},${botS}%,${botL}%)`);
+                ctx.fillStyle=grad; ctx.fillRect(0,0,logicalWidth,logicalHeight);
+                ctx.globalAlpha = nightlight * 0.9;
+                this.stars.forEach(s=>{ctx.fillStyle=`rgba(255,255,255,${s.b*(0.5+Math.sin(Date.now()*s.z/1000)*0.5)})`;ctx.beginPath();ctx.arc(s.x,(s.y-scrollY*s.z)%logicalHeight,s.z*1.5*SCALE,0,2*Math.PI);ctx.fill();});
+                this.shootingStars.forEach(s => { const tailX = s.x + s.len; const tailY = s.y - s.len * Math.tan(s.angle); const starGrad = ctx.createLinearGradient(s.x, s.y, tailX, tailY); starGrad.addColorStop(0, `rgba(255, 255, 224, ${s.life})`); starGrad.addColorStop(1, 'rgba(255, 255, 224, 0)'); ctx.strokeStyle = starGrad; ctx.lineWidth = 2.5 * SCALE; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(tailX, tailY); ctx.stroke(); });
+                ctx.globalAlpha = daylight * 0.9;
+                this.clouds.forEach(c => this.drawFluffyCloud(c));
+                ctx.globalAlpha = 1;
+            },
+            drawFluffyCloud(c) {
+                const parallaxY = (c.y - scrollY * c.z); const screenHeightWithBuffer = logicalHeight + c.w * 2; const wrappedY = (parallaxY % screenHeightWithBuffer + screenHeightWithBuffer) % screenHeightWithBuffer - c.w;
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * c.z})`; ctx.beginPath();
+                c.puffs.forEach(p => { ctx.moveTo(c.x + p.dx, wrappedY + p.dy); ctx.arc(c.x + p.dx, wrappedY + p.dy, p.r, 0, Math.PI * 2); });
+                ctx.fill();
+            }
+        };
+        
+        const monkey = {
+            x:0,y:0,vx:0,vy:0,width:35*SCALE,height:35*SCALE,squash:1,onGround:false, headAngle:0,
+            leftArmAngle: 0, rightArmAngle: 0, attachedHearts: [], heartEyesTimer: 0,
+            isBlinking: false, blinkTimer: 2 + Math.random() * 4, blinkDuration: 0,
+            isScared: false,
+
+            update(dt) {
+                const move=(keys.ArrowRight||keys.d)-(keys.ArrowLeft||keys.a); this.vx+=move*MONKEY_ACCELERATION*dt;
+                this.vx*=FRICTION; this.x+=this.vx*dt; this.vy+=GRAVITY*dt; this.y+=this.vy*dt;
+                if(this.x>logicalWidth)this.x=-this.width;if(this.x+this.width<0)this.x=logicalWidth;
+                
+                if (this.vy > JUMP_STRENGTH * 0.4) {
+                    this.isScared = true;
+                }
+                
+                let targetRightArmAngle, targetLeftArmAngle;
+                if (this.vy < 0) {
+                    const upRatio = Math.min(1, Math.abs(this.vy / (JUMP_STRENGTH * 0.9)));
+                    const UP_V_ANGLE = 2.7, T_POSE_ANGLE = Math.PI / 2;
+                    targetRightArmAngle = -T_POSE_ANGLE - (UP_V_ANGLE - T_POSE_ANGLE) * upRatio;
+                    targetLeftArmAngle =  T_POSE_ANGLE + (UP_V_ANGLE - T_POSE_ANGLE) * upRatio;
+                } else {
+                    targetRightArmAngle = -Math.PI / 2;
+                    targetLeftArmAngle = Math.PI / 2;
+                }
+                const lerpSpeed = 10;
+                this.rightArmAngle += (targetRightArmAngle - this.rightArmAngle) * lerpSpeed * dt;
+                this.leftArmAngle += (targetLeftArmAngle - this.leftArmAngle) * lerpSpeed * dt;
+
+                this.headAngle=(this.headAngle*0.9)+(this.vx/MONKEY_MAX_SPEED*0.8*0.1);
+                this.squash=this.onGround?(this.squash*0.8+1.2*0.2):(this.squash*0.8+1.0*0.2); this.onGround=false;
+                
+                this.blinkTimer -= dt;
+                if (this.blinkTimer <= 0 && !this.isBlinking) {
+                    this.isBlinking = true;
+                    this.blinkDuration = 0.15;
+                }
+                if (this.isBlinking) {
+                    this.blinkDuration -= dt;
+                    if (this.blinkDuration <= 0) {
+                        this.isBlinking = false;
+                        this.blinkTimer = 2 + Math.random() * 4;
+                    }
+                }
+
+                this.attachedHearts.forEach((h, i) => {
+                    h.life -= dt;
+                    if (h.life <= 0) this.attachedHearts.splice(i, 1);
+                });
+
+                if (this.heartEyesTimer > 0) { this.heartEyesTimer -= dt; }
+            },
+            draw() {
+                ctx.save(); ctx.translate(this.x+this.width/2,this.y+this.height/2-scrollY);
+                const bodyW=this.width*(2-this.squash), bodyH=this.height*this.squash;
+                const mainColor='#a1887f', darkColor='#6d4c41', faceColor='#d7ccc8';
+                
+                this.drawTail(darkColor);
+                const legAngle=Math.sin(Date.now()/200)*0.1-this.vy/2000;
+                this.drawLeg(-bodyW/4,bodyH/4,legAngle,mainColor); this.drawLeg(bodyW/4,bodyH/4,legAngle,mainColor);
+                ctx.fillStyle=mainColor; ctx.beginPath(); ctx.roundRect(-bodyW/2,-bodyH/2,bodyW,bodyH,10*SCALE); ctx.fill();
+
+                ctx.save(); ctx.translate(0,-bodyH/2 - 10*SCALE*this.squash); ctx.rotate(this.headAngle);
+                ctx.fillStyle=mainColor; ctx.beginPath();ctx.arc(15*SCALE,-5*SCALE,10*SCALE,0,2*Math.PI);ctx.arc(-15*SCALE,-5*SCALE,10*SCALE,0,2*Math.PI);ctx.fill();
+                ctx.fillStyle=mainColor; ctx.beginPath();ctx.arc(0,0,20*SCALE,0,2*Math.PI);ctx.fill();
+                ctx.fillStyle=faceColor; ctx.beginPath();ctx.ellipse(0, 2*SCALE, 16*SCALE, 14*SCALE, 0, 0, 2*Math.PI);ctx.fill();
+                
+                this.drawEye(-5*SCALE,-2*SCALE); this.drawEye(5*SCALE,-2*SCALE);
+                
+                ctx.strokeStyle=darkColor; ctx.lineWidth=2*SCALE; ctx.lineCap='round'; ctx.beginPath();
+                if (this.isScared) {
+                    ctx.moveTo(-5 * SCALE, 9 * SCALE);
+                    ctx.quadraticCurveTo(-2*SCALE, 6*SCALE, 0, 9*SCALE);
+                    ctx.quadraticCurveTo(2*SCALE, 12*SCALE, 5*SCALE, 9*SCALE);
+                } else if (this.vy < -300*SCALE) {
+                    ctx.ellipse(0, 7*SCALE, 3*SCALE, 4.5*SCALE, 0, 0, 2 * Math.PI);
+                } else {
+                    ctx.moveTo(-4*SCALE, 6*SCALE);
+                    ctx.quadraticCurveTo(0, 8*SCALE, 4*SCALE, 6*SCALE);
+                }
+                ctx.stroke();
+
+                this.attachedHearts.forEach(h => {
+                    ctx.save();
+                    ctx.globalAlpha = Math.max(0, h.life / h.maxLife);
+                    ctx.font = `${h.size}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText('❤️', h.ox, h.oy);
+                    ctx.restore();
+                });
+
+                ctx.restore(); 
+                
+                this.drawSwingingArm(-bodyW / 2 + (8 * SCALE), -bodyH / 4, this.leftArmAngle, mainColor);
+                this.drawSwingingArm(bodyW / 2 - (8 * SCALE), -bodyH / 4, this.rightArmAngle, mainColor);
+                
+                ctx.restore();
+            },
+            drawEye(x, y) {
+                if (this.heartEyesTimer > 0) {
+                    ctx.font = `bold ${8 * SCALE}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('❤️', x, y);
+                } else if (this.isScared) {
+                    ctx.strokeStyle = '#6d4c41';
+                    ctx.lineWidth = 2 * SCALE;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(x - 4 * SCALE, y);
+                    ctx.lineTo(x + 4 * SCALE, y);
+                    ctx.stroke();
+                } else if (this.isBlinking) {
+                    ctx.strokeStyle = '#6d4c41';
+                    ctx.lineWidth = 1.5 * SCALE;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(x - 4 * SCALE, y);
+                    ctx.lineTo(x + 4 * SCALE, y);
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = 'white';
+                    ctx.strokeStyle = '#a79a95';
+                    ctx.lineWidth = 1 * SCALE;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 5 * SCALE, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.arc(x + this.headAngle * 4 * SCALE, y, 2.5 * SCALE, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            },
+            drawLeg(x,y,a,c){ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.strokeStyle=c;ctx.lineWidth=10*SCALE;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,15*SCALE);ctx.stroke();ctx.restore();},
+            drawSwingingArm(x, y, angle, color) {
+                ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+                ctx.lineCap = 'round'; ctx.strokeStyle = color; ctx.lineWidth = 8 * SCALE;
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 18 * SCALE); ctx.stroke();
+                ctx.fillStyle = color; ctx.beginPath(); ctx.arc(0, 18 * SCALE, 5 * SCALE, 0, 2 * Math.PI); ctx.fill();
+                ctx.restore();
+            },
+            drawTail(color) {
+                const bodyBottomY = this.height / 2 - 5 * SCALE; const sway = Math.sin(gameTime * 12) * 10 * SCALE; const lift = Math.max(0, -this.vy * 0.05);
+                const startY = bodyBottomY - lift * 0.5;
+                const cp1 = { x: sway, y: startY + 20*SCALE - lift }; const cp2 = { x: -sway, y: startY + 35*SCALE - lift * 0.5 };
+                const end = { x: sway * 0.3, y: startY + 45*SCALE - lift * 0.2 };
+                ctx.strokeStyle = color; ctx.lineWidth = 6*SCALE; ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(0, startY); ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y); ctx.stroke();
+            },
+            jump(){this.vy=-JUMP_STRENGTH;this.squash=0.7;},
+            land(){
+                this.onGround=true;
+                this.squash=1.4;
+                this.isScared = false;
+            },
+            collectBanana(){
+                this.heartEyesTimer = 0.4;
+                this.attachedHearts.length = 0;
+                for(let i=0; i<5; i++) {
+                    const angle = Math.random() * Math.PI * 2; const dist = 30 * SCALE + Math.random() * 20 * SCALE;
+                    this.attachedHearts.push({
+                        ox: Math.cos(angle) * dist, oy: Math.sin(angle) * dist - this.height/2,
+                        life: Math.random() * 0.5 + 0.5, maxLife: 1.0, size: (Math.random() * 8 + 10) * SCALE,
+                    });
+                }
+            }
+        };
+        
+        function getHighScores(){try{const s=JSON.parse(localStorage.getItem(HIGH_SCORE_KEY));return Array.isArray(s)?s:[];}catch(e){return[];}}
+        function saveHighScores(s){localStorage.setItem(HIGH_SCORE_KEY,JSON.stringify(s));}
+        function checkAndAddHighScore(newScore){if(newScore<=0)return false;const scores=getHighScores();const lowest=scores.length<5?0:scores[scores.length-1];if(newScore>lowest){scores.push(Math.floor(newScore));scores.sort((a,b)=>b-a);saveHighScores(scores.slice(0,5));return true;}return false;}
+        function spawnBananaConfetti(){bananaConfetti.length=0;for(let i=0;i<60;i++)bananaConfetti.push({x:Math.random()*logicalWidth,y:-Math.random()*logicalHeight,vx:(Math.random()-.5)*100*SCALE,vy:Math.random()*150*SCALE+50*SCALE,a:Math.random()*Math.PI*2,r:(Math.random()-.5)*5,s:(Math.random()*10+20)*SCALE});}
+        function updateConfetti(dt){const g=200*SCALE;bananaConfetti.forEach(p=>{p.vy+=g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.r*dt;});}
+        function drawBananaConfetti(){bananaConfetti.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.font=`${p.s}px sans-serif`;ctx.textAlign='center';ctx.fillText('🍌',0,0);ctx.restore();});}
+        
+        // --- MODIFIED: Updated high score drawing with 5 medals ---
+        function drawHighScores(x, y) {
+            const scores = getHighScores();
+            if (scores.length === 0) return;
+            ctx.font = `bold ${22 * SCALE}px sans-serif`;
+            ctx.fillText('High Scores', x, y);
+
+            const colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#a1887f', '#6d4c41']; // Gold, Silver, Bronze, Wood, Stone
+            const medals = ['🥇', '🥈', '🥉', '🏅', '🏅']; // Added generic medals for 4th and 5th
+            
+            ctx.font = `${20 * SCALE}px sans-serif`;
+            const startX = x - 100 * SCALE;
+
+            scores.forEach((s, i) => {
+                const scoreY = y + (i + 1) * 30 * SCALE;
+                const medalText = medals[i] ? `${medals[i]} ` : `${i + 1}. `;
+                const fullText = `${medalText}${s}`;
+
+                ctx.fillStyle = colors[i] || 'white';
+                ctx.textAlign = 'left';
+                ctx.fillText(fullText, startX, scoreY);
+            });
+            
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+        }
+
+        function getDifficultyLevel(currentScore) { return Math.floor(currentScore / DIFFICULTY_SCORE_INTERVAL); }
+
+        function createVine(y, prevVine, currentScore = 0) {
+            const difficulty = getDifficultyLevel(currentScore);
+            const widthReduction = difficulty * 12 * SCALE;
+            const currentMaxWidth = Math.max(VINE_MIN_WIDTH * 0.7, VINE_MAX_WIDTH - widthReduction);
+            const currentMinWidth = Math.max(VINE_MIN_WIDTH * 0.6, VINE_MIN_WIDTH - widthReduction);
+            const width = currentMinWidth + Math.random() * (currentMaxWidth - currentMinWidth);
+            const jumpsLeft = Math.max(1, VINE_JUMPS_TO_BREAK - Math.floor(difficulty / 1.5));
+            let x;
+            if (prevVine) {
+                const leftZone_start=Math.max(20*SCALE,prevVine.x-VINE_HORIZONTAL_REACH),leftZone_end=prevVine.x-VINE_MIN_HORIZONTAL_OFFSET;
+                const rightZone_start=prevVine.x+VINE_MIN_HORIZONTAL_OFFSET,rightZone_end=Math.min(logicalWidth-width-20*SCALE,prevVine.x+VINE_HORIZONTAL_REACH);
+                const leftZone_size=Math.max(0,leftZone_end-leftZone_start),rightZone_size=Math.max(0,rightZone_end-rightZone_start),totalZone_size=leftZone_size+rightZone_size;
+                if(totalZone_size<=0){const minX=Math.max(20*SCALE,prevVine.x-VINE_HORIZONTAL_REACH),maxX=Math.min(logicalWidth-width-20*SCALE,prevVine.x+VINE_HORIZONTAL_REACH);x=minX+Math.random()*(maxX-minX);}
+                else{const rand=Math.random()*totalZone_size;if(rand<leftZone_size){x=leftZone_start+rand;}else{x=rightZone_start+(rand-leftZone_size);}}
+            } else { x = Math.random() * (logicalWidth - width); }
+            const leaves=[];for(let i=0;i<width/(20*SCALE);i++){leaves.push({x:Math.random()*width,y:Math.random()*10*SCALE-5*SCALE,s:Math.random()*5*SCALE+5*SCALE,a:Math.random()*Math.PI,color:`hsl(120,50%,${25+Math.random()*20}%)`});}
+            return {x,y,width,leaves,jumpsLeft,isFalling:false,dip:0};
+        }
+        
+        function drawVine(vine) {
+            vine.dip*=0.8; const drawY=vine.y-scrollY+vine.dip;
+            ctx.save();
+            if (vine.isFalling) { const fadeStart=logicalHeight*0.9,fadeEnd=logicalHeight*1.2;if(drawY>fadeStart){ctx.globalAlpha=1-(drawY-fadeStart)/(fadeEnd-fadeStart);} }
+            ctx.translate(vine.x,drawY);
+            const p1={x:0,y:10*SCALE},p2={x:vine.width,y:10*SCALE},cp={x:vine.width/2,y:10*SCALE+vine.dip/2};
+            ctx.strokeStyle='#3e2723';ctx.lineWidth=12*SCALE;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.quadraticCurveTo(cp.x,cp.y,p2.x,p2.y);ctx.stroke();
+            ctx.strokeStyle='#5d4037';ctx.lineWidth=10*SCALE;ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.quadraticCurveTo(cp.x,cp.y,p2.x,p2.y);ctx.stroke();
+            ctx.strokeStyle='#8d6e63';ctx.lineWidth=4*SCALE;ctx.beginPath();ctx.moveTo(p1.x,p1.y-1*SCALE);ctx.quadraticCurveTo(cp.x,cp.y-1*SCALE,p2.x,p2.y-1*SCALE);ctx.stroke();
+            vine.leaves.forEach(l=>{ctx.save();ctx.translate(l.x,l.y+10*SCALE);ctx.rotate(l.a);ctx.fillStyle=l.color;ctx.beginPath();ctx.ellipse(0,0,l.s,l.s/2,0,0,2*Math.PI);ctx.fill();ctx.restore();});
+            ctx.restore();
+        }
+
+        function drawBanana(b) {
+            if(b.isCollected)return; const glow=0.6+Math.sin(Date.now()/200)*0.4;
+            ctx.save(); ctx.shadowBlur=20*SCALE;ctx.shadowColor=`rgba(255,223,0,${glow})`;
+            ctx.fillStyle='white';ctx.font=`${30*SCALE}px sans-serif`;ctx.textAlign='center';
+            ctx.fillText('🍌',b.x,b.y-scrollY); ctx.restore();
+        }
+
+        function init() {
+            resize();scrollY=0;score=0;gameTime=0;gameState='playing';particles.length=0; isNewHighScore=false; bananaConfetti.length=0; showInstructions=false; monkey.attachedHearts.length = 0;
+            monkey.x=logicalWidth/2-monkey.width/2;monkey.y=logicalHeight-150*SCALE;monkey.vx=0;monkey.vy=0;
+            monkey.isScared = false;
+            vinePool.length=0;bananaPool.length=0;let lastVine=null;
+            for(let i=0;i<VINE_COUNT;i++){const v=createVine(logicalHeight-100*SCALE-i*VINE_VERTICAL_SPACING,lastVine,0);vinePool.push(v);lastVine=v;}
+            vinePool[0].x=monkey.x+monkey.width/2-vinePool[0].width/2;vinePool[0].y=monkey.y+monkey.height+10*SCALE;
+            if(!animationFrameId){lastTime=performance.now();dt=0;loop(lastTime);}
+        }
+
+        let dt = 0;
+        function update() {
+            gameTime+=dt; 
+            if (gameState === 'playing') {
+                monkey.update(dt);
+            } else if (gameState === 'start') {
+                skySystem.update(dt, 0.5); return;
+            }
+            
+            const gameClock = (scrollY / DAY_NIGHT_DISTANCE) % 1.0; const nightlight = 1 - (0.5 - Math.cos(gameClock * 2 * Math.PI) * 0.5);
+            skySystem.update(dt, nightlight);
+
+            if(monkey.vy>0){for(const v of vinePool){if(!v.isFalling&&monkey.x+monkey.width>v.x&&monkey.x<v.x+v.width&&monkey.y+monkey.height+monkey.vy*dt>v.y&&monkey.y+monkey.height<=v.y+20*SCALE){monkey.y=v.y-monkey.height;monkey.jump();monkey.land();v.dip=15*SCALE;if(gameTime>VINE_FALL_TRIGGER_TIME){v.jumpsLeft--;if(v.jumpsLeft<=0){v.isFalling=true; for(let i=0;i<5;i++)particles.push({x:v.x+Math.random()*v.width,y:v.y,vx:(Math.random()-0.5)*50*SCALE,vy:Math.random()*50*SCALE,l:2,type:'leaf'});}} break;}}}
+            for(const b of bananaPool){if(!b.isCollected&&Math.hypot(monkey.x+monkey.width/2-b.x,monkey.y+monkey.height/2-b.y)<50*SCALE){b.isCollected=true;score+=BANANA_POINTS;monkey.collectBanana();for(let i=0;i<15;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*250*SCALE,vy:(Math.random()-0.5)*250*SCALE,l:1,type:'sparkle'});}}
+            const scrollThr=logicalHeight*0.4;if(monkey.y-scrollY<scrollThr){const s=(monkey.y-scrollY)-scrollThr;scrollY+=s;score+=Math.floor(-s);}
+            particles.forEach((p,i)=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.l-=dt;if(p.l<=0)particles.splice(i,1);});
+            
+            vinePool.forEach((v) => {
+                if (v.isFalling) { v.y += VINE_FALL_SPEED * dt; }
+                if (v.y -scrollY > logicalHeight + 50 * SCALE) {
+                    let highestVine = null; let highestY = Infinity;
+                    for (const otherVine of vinePool) { if (otherVine.y < highestY) { highestY = otherVine.y; highestVine = otherVine; } }
+                    const difficulty = getDifficultyLevel(score), spacingIncrease = difficulty * 8 * SCALE, newSpacing = VINE_VERTICAL_SPACING + spacingIncrease;
+                    Object.assign(v, createVine(highestY - newSpacing, highestVine, score));
+                    if (score > 1000 && Math.random() < BANANA_SPAWN_CHANCE) { bananaPool.push({x: v.x + v.width/2, y: v.y - 50*SCALE, isCollected: false}); }
+                }
+            });
+
+            bananaPool.forEach((b,i)=>{if(b.y-scrollY>logicalHeight+50*SCALE)bananaPool.splice(i,1);})
+            
+            if(monkey.y-scrollY>logicalHeight){
+                if(gameState==='playing'){isNewHighScore=checkAndAddHighScore(score);if(isNewHighScore)spawnBananaConfetti();}
+                gameState='gameOver';
+            }
+        }
+        
+        function drawBananaLogo(x, y) {
+            const title = 'Go! Go! Monkey, Go!';
+            const font_size = Math.min(64 * SCALE, logicalWidth / 12);
+            ctx.font = `bold ${font_size}px 'Comic Sans MS', 'Chalkduster', sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const textMetrics = ctx.measureText(title); let currentX = x - textMetrics.width / 2;
+            for (let i = 0; i < title.length; i++) {
+                const char = title[i]; const charMetrics = ctx.measureText(char);
+                ctx.save();
+                ctx.translate(currentX + charMetrics.width / 2, y);
+                ctx.rotate((Math.sin(i * 0.8 + gameTime * 2)) * 0.08);
+                const grad = ctx.createLinearGradient(0, -font_size/2, 0, font_size/2);
+                grad.addColorStop(0, '#f9f954'); grad.addColorStop(1, '#e3c600');
+                ctx.fillStyle = grad; ctx.strokeStyle = '#4a2d1e';
+                ctx.lineWidth = 8 * SCALE; ctx.lineJoin = 'round';
+                ctx.strokeText(char, 0, 0); ctx.fillText(char, 0, 0);
+                ctx.restore();
+                currentX += charMetrics.width;
+            }
+        }
+        
+        function drawMenuButton(text, x, y, w, h) {
+            const grad = ctx.createLinearGradient(x, y, x, y + h);
+            grad.addColorStop(0, 'hsl(120, 60%, 35%)'); grad.addColorStop(1, 'hsl(120, 60%, 25%)');
+            ctx.fillStyle = grad;
+            ctx.strokeStyle = 'hsl(120, 80%, 80%)'; ctx.lineWidth = 4 * SCALE;
+            ctx.beginPath(); ctx.roundRect(x, y, w, h, 20 * SCALE); ctx.fill(); ctx.stroke();
+            
+            ctx.fillStyle = 'white'; ctx.font = `bold ${28*SCALE}px sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 5*SCALE;
+            ctx.fillText(text, x + w/2, y + h/2);
+            ctx.shadowBlur = 0;
+        }
+
+        function drawInstructionsPopup() {
+            const w = logicalWidth * 0.8, h = logicalHeight * 0.8;
+            const x = logicalWidth/2 - w/2, y = logicalHeight/2 - h/2;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0,0,logicalWidth,logicalHeight);
+            ctx.fillStyle = '#a1887f'; ctx.strokeStyle = '#d7ccc8'; ctx.lineWidth = 6*SCALE;
+            ctx.beginPath(); ctx.roundRect(x, y, w, h, 25 * SCALE); ctx.fill(); ctx.stroke();
+            ctx.fillStyle='white'; ctx.textAlign='center';
+            ctx.font=`bold ${32*SCALE}px sans-serif`; ctx.fillText('Instructions', logicalWidth/2, y + 60*SCALE);
+            ctx.font=`${20*SCALE}px sans-serif`;
+            const lines = [
+                'Desktop: Use A/D or Arrow Keys to move.', 'Mobile: Tap left or right side to move.',
+                'Jump from vine to vine to climb higher!', 'Some vines will break after a few jumps.',
+                'Collect bananas for extra points!'
+            ];
+            lines.forEach((line, i) => ctx.fillText(line, logicalWidth/2, y + 150*SCALE + i * 45*SCALE));
+            const btnW=180*SCALE, btnH=60*SCALE, btnX=logicalWidth/2-btnW/2, btnY=y+h-btnH-30*SCALE;
+            drawMenuButton("Close", btnX, btnY, btnW, btnH);
+            menuButtons.closeInstructions = {x:btnX*dpr, y:btnY*dpr, w:btnW*dpr, h:btnH*dpr};
+        }
+
+        function drawMainMenu() {
+            skySystem.draw(0.25);
+            const lw = logicalWidth, lh = logicalHeight;
+            
+            drawBananaLogo(lw/2, lh*0.25);
+            
+            const btnW = 300*SCALE, btnH = 70*SCALE, btnY = lh*0.55;
+            const startX = lw/2 - btnW/2, instrX = lw/2 - btnW/2;
+            drawMenuButton("Start Game", startX, btnY, btnW, btnH);
+            drawMenuButton("Instructions", instrX, btnY + btnH + 20*SCALE, btnW, btnH);
+            
+            menuButtons.start = {x:startX*dpr, y:btnY*dpr, w:btnW*dpr, h:btnH*dpr};
+            menuButtons.instructions = {x:instrX*dpr, y:(btnY+btnH+20*SCALE)*dpr, w:btnW*dpr, h:btnH*dpr};
+
+            if(showInstructions) drawInstructionsPopup();
+        }
+
+        function render() {
+            const gameClock = (scrollY / DAY_NIGHT_DISTANCE) % 1.0;
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+
+            if (gameState === 'start') {
+                drawMainMenu();
+            } else {
+                skySystem.draw(gameClock);
+                
+                particles.forEach(p=>{
+                    if(p.type==='leaf'){ctx.fillStyle=`hsl(120,50%,${20+Math.random()*20}%)`;ctx.fillRect(p.x,p.y-scrollY,5*SCALE,5*SCALE);}
+                    else if(p.type==='sparkle'){ctx.fillStyle=`rgba(255,223,0,${p.l})`;ctx.font=`${20*SCALE}px sans-serif`;ctx.fillText('✨',p.x,p.y-scrollY);}
+                });
+
+                vinePool.forEach(drawVine);
+                bananaPool.forEach(drawBanana);
+                monkey.draw();
+                ctx.fillStyle='white';ctx.font=`bold ${24*SCALE}px sans-serif`;ctx.textAlign='left';ctx.shadowColor='black';ctx.shadowBlur=5*SCALE;
+                ctx.fillText(`Score: ${Math.floor(score)}`,20,40 * SCALE);
+                ctx.shadowBlur=0;
+                if(gameState!=='playing'){
+                    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,logicalWidth,logicalHeight);
+                    if(gameState==='gameOver'&&isNewHighScore)drawBananaConfetti();
+                    ctx.fillStyle='white'; ctx.textAlign='center';
+                    ctx.font=`bold ${48*SCALE}px sans-serif`; ctx.fillText('Game Over', logicalWidth/2, logicalHeight*0.15);
+                    ctx.font=`${28*SCALE}px sans-serif`; ctx.fillText(`Final Score: ${Math.floor(score)}`, logicalWidth/2, logicalHeight*0.25);
+                    if(isNewHighScore){ctx.font=`bold ${24*SCALE}px sans-serif`;ctx.fillStyle='#66FF66';ctx.fillText('New High Score!',logicalWidth/2,logicalHeight*0.32);ctx.fillStyle='white';}
+                    drawHighScores(logicalWidth/2, logicalHeight*0.4);
+                    ctx.font=`bold ${24*SCALE}px sans-serif`;
+                    // --- MODIFIED: Device-specific "Play Again" text ---
+                    const playAgainText = isTouchDevice
+                        ? 'Tap anywhere to Play Again'
+                        : 'Click or Press Space to Play Again';
+                    ctx.fillText(playAgainText, logicalWidth/2, logicalHeight - 80*SCALE);
+                }
+            }
+        }
+
+        function loop(timestamp) {
+            dt=Math.min(0.1,(timestamp-lastTime)/1000); lastTime=timestamp;
+            update();
+            if(gameState==='gameOver' && isNewHighScore)updateConfetti(dt);
+            render();
+            animationFrameId=requestAnimationFrame(loop);
+        }
+        
+        resize();
+        gameState='start';
+        lastTime=performance.now();dt=0;
+        loop(lastTime);
+    });
+    </script>
+</body>
+</html>
