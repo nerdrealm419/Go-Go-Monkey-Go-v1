@@ -27,6 +27,9 @@
         const DIFFICULTY_SCORE_INTERVAL = 7500;
         const VINE_MIN_HORIZONTAL_OFFSET = 60 * SCALE;
         const HIGH_SCORE_KEY = 'gogomonkeygo_highscores';
+        // --- NEW: Global constants for high scores ---
+        const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32', '#00FFFF', '#FF69B4']; // Gold, Silver, Bronze, Cyan, Pink
+        const MEDAL_EMOJIS = ['🥇', '🥈', '🥉', '🏅', '🏅'];
 
         let dpr = window.devicePixelRatio||1; function resize(){dpr=window.devicePixelRatio||1;canvas.width=innerWidth*dpr;canvas.height=innerHeight*dpr;ctx.scale(dpr,dpr);if(skySystem)skySystem.init(true);}
         window.addEventListener('resize', resize);
@@ -34,7 +37,6 @@
         let logicalWidth, logicalHeight;
         let lastTime = 0, gameState = 'start', scrollY = 0, score = 0, gameTime = 0, animationFrameId;
         let isNewHighScore = false;
-        // --- NEW: Device detection ---
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
         let showInstructions = false;
@@ -302,31 +304,27 @@
         function updateConfetti(dt){const g=200*SCALE;bananaConfetti.forEach(p=>{p.vy+=g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.r*dt;});}
         function drawBananaConfetti(){bananaConfetti.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.font=`${p.s}px sans-serif`;ctx.textAlign='center';ctx.fillText('🍌',0,0);ctx.restore();});}
         
-        // --- MODIFIED: Updated high score drawing with 5 medals ---
+        // --- MODIFIED: Centered high scores ---
         function drawHighScores(x, y) {
             const scores = getHighScores();
             if (scores.length === 0) return;
+            
+            ctx.textAlign = 'center';
             ctx.font = `bold ${22 * SCALE}px sans-serif`;
+            ctx.fillStyle = 'white';
             ctx.fillText('High Scores', x, y);
-
-            const colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#a1887f', '#6d4c41']; // Gold, Silver, Bronze, Wood, Stone
-            const medals = ['🥇', '🥈', '🥉', '🏅', '🏅']; // Added generic medals for 4th and 5th
             
             ctx.font = `${20 * SCALE}px sans-serif`;
-            const startX = x - 100 * SCALE;
-
             scores.forEach((s, i) => {
-                const scoreY = y + (i + 1) * 30 * SCALE;
-                const medalText = medals[i] ? `${medals[i]} ` : `${i + 1}. `;
+                const scoreY = y + (i + 1) * 35 * SCALE; // Increased spacing slightly
+                const medalText = MEDAL_EMOJIS[i] ? `${MEDAL_EMOJIS[i]} ` : `${i + 1}. `;
                 const fullText = `${medalText}${s}`;
 
-                ctx.fillStyle = colors[i] || 'white';
-                ctx.textAlign = 'left';
-                ctx.fillText(fullText, startX, scoreY);
+                ctx.fillStyle = MEDAL_COLORS[i] || 'white';
+                ctx.fillText(fullText, x, scoreY);
             });
             
             ctx.fillStyle = 'white';
-            ctx.textAlign = 'center';
         }
 
         function getDifficultyLevel(currentScore) { return Math.floor(currentScore / DIFFICULTY_SCORE_INTERVAL); }
@@ -508,16 +506,42 @@
                 ctx.fillStyle='white';ctx.font=`bold ${24*SCALE}px sans-serif`;ctx.textAlign='left';ctx.shadowColor='black';ctx.shadowBlur=5*SCALE;
                 ctx.fillText(`Score: ${Math.floor(score)}`,20,40 * SCALE);
                 ctx.shadowBlur=0;
+
                 if(gameState!=='playing'){
                     ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,logicalWidth,logicalHeight);
                     if(gameState==='gameOver'&&isNewHighScore)drawBananaConfetti();
                     ctx.fillStyle='white'; ctx.textAlign='center';
                     ctx.font=`bold ${48*SCALE}px sans-serif`; ctx.fillText('Game Over', logicalWidth/2, logicalHeight*0.15);
-                    ctx.font=`${28*SCALE}px sans-serif`; ctx.fillText(`Final Score: ${Math.floor(score)}`, logicalWidth/2, logicalHeight*0.25);
+                    
+                    // --- MODIFIED: Final Score drawing logic with conditional colors ---
+                    ctx.font=`${28*SCALE}px sans-serif`;
+                    const finalScoreText = 'Final Score: ';
+                    const scoreNumber = Math.floor(score);
+                    const textMetrics = ctx.measureText(finalScoreText);
+                    const textWidth = textMetrics.width;
+                    const totalWidth = textWidth + ctx.measureText(scoreNumber).width;
+                    const startX = logicalWidth/2 - totalWidth/2;
+
+                    ctx.fillStyle = 'white';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(finalScoreText, startX, logicalHeight*0.25);
+
+                    let scoreColor = '#FF0000'; // Default to red
+                    if (isNewHighScore) {
+                        const highScores = getHighScores();
+                        const rank = highScores.indexOf(scoreNumber);
+                        if (rank > -1) {
+                            scoreColor = MEDAL_COLORS[rank];
+                        }
+                    }
+                    ctx.fillStyle = scoreColor;
+                    ctx.fillText(scoreNumber, startX + textWidth, logicalHeight*0.25);
+                    ctx.textAlign = 'center'; // Reset for next text
+
                     if(isNewHighScore){ctx.font=`bold ${24*SCALE}px sans-serif`;ctx.fillStyle='#66FF66';ctx.fillText('New High Score!',logicalWidth/2,logicalHeight*0.32);ctx.fillStyle='white';}
                     drawHighScores(logicalWidth/2, logicalHeight*0.4);
+                    
                     ctx.font=`bold ${24*SCALE}px sans-serif`;
-                    // --- MODIFIED: Device-specific "Play Again" text ---
                     const playAgainText = isTouchDevice
                         ? 'Tap anywhere to Play Again'
                         : 'Click or Press Space to Play Again';
