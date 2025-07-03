@@ -1,31 +1,27 @@
+--- START OF FILE Go!Go!Monkey,Go!.html ---
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Go! Go! Monkey, Go!</title>
-    
-    <!-- PWA and Mobile App-like tags -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#000000"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- START: Meta tags for app-like full-screen mode on mobile -->
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Go!Go!Monkey!">
-    <!-- You should create an icon for your game and link it here -->
-    <!-- <link rel="apple-touch-icon" href="icon-192x192.png"> -->
-
-
+    <!-- END: Meta tags -->
+    <title>Go! Go! Monkey, Go!</title>
     <style>
-        body, html {
+        body {
             margin: 0;
             padding: 0;
             overflow: hidden;
             background-color: #000;
-            width: 100%;
-            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
+            width: 100vw;
+            height: 100vh;
         }
         canvas {
             display: block;
@@ -40,7 +36,6 @@
     document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const docEl = document.documentElement;
 
         const GAME_WIDTH = 800;
         const GAME_HEIGHT = 1200;
@@ -134,21 +129,9 @@
         }, { once: true });
 
 
-        // --- NEW: Fullscreen API Logic ---
-        function openFullscreen() {
-            if (docEl.requestFullscreen) {
-                docEl.requestFullscreen();
-            } else if (docEl.webkitRequestFullscreen) { /* Safari */
-                docEl.webkitRequestFullscreen();
-            } else if (docEl.msRequestFullscreen) { /* IE11 */
-                docEl.msRequestFullscreen();
-            }
-        }
-
         function resize() {
-            // Use window.screen.width/height in fullscreen, otherwise innerWidth/Height
-            const windowWidth = document.fullscreenElement ? window.screen.width : window.innerWidth;
-            const windowHeight = document.fullscreenElement ? window.screen.height : window.innerHeight;
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
             const gameAspectRatio = GAME_WIDTH / GAME_HEIGHT;
             const windowAspectRatio = windowWidth / windowHeight;
 
@@ -172,8 +155,6 @@
             if (skySystem) skySystem.init(true);
         }
         window.addEventListener('resize', resize);
-        // Call resize when fullscreen status changes
-        document.addEventListener('fullscreenchange', resize);
         
         function screenToCanvasCoords(screenX, screenY) {
             return {
@@ -186,7 +167,7 @@
         let isNewHighScore = false;
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         let ingameInstructions = { active: false, opacity: 1.0, hasMoved: false };
-        const menuButtons = { start: null, fullscreen: null }; // Add fullscreen button
+        const menuButtons = { start: null };
 
         const keys = {a:0,d:0,ArrowLeft:0,ArrowRight:0};
         window.addEventListener('keydown', e=>{if(keys.hasOwnProperty(e.key)) { keys[e.key]=1; if(gameState === 'playing' && !ingameInstructions.hasMoved) ingameInstructions.hasMoved = true; } if((gameState==='start'||gameState==='gameOver')&&(e.key===' '||e.key==='Enter'))startGameSequence();});
@@ -225,11 +206,8 @@
 
             if (gameState === 'start') {
                 const startBtn = menuButtons.start;
-                const fsBtn = menuButtons.fullscreen;
                 if (startBtn && x > startBtn.x && x < startBtn.x + startBtn.w && y > startBtn.y && y < startBtn.y + startBtn.h) {
                     startGameSequence();
-                } else if (fsBtn && x > fsBtn.x && x < fsBtn.x + fsBtn.w && y > fsBtn.y && y < fsBtn.y + fsBtn.h) {
-                    openFullscreen();
                 }
             } else if (gameState === 'characterSelect') {
                 for(const btn of characterSelectButtons) {
@@ -758,27 +736,16 @@
             drawAnimatedBeveledLine('Go!', GAME_WIDTH / 2, y3, size1, grad1, 4);
         }
         
-        function drawMenuButton(text, x, y, w, h, icon = '') {
+        function drawMenuButton(text, x, y, w, h) {
             const grad = ctx.createLinearGradient(x, y, x, y + h);
             grad.addColorStop(0, 'hsl(120, 60%, 45%)'); grad.addColorStop(1, 'hsl(120, 60%, 30%)');
             ctx.fillStyle = grad;
             ctx.strokeStyle = 'hsl(120, 80%, 85%)'; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.roundRect(x, y, w, h, 20); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = 'white';
+            ctx.fillStyle = 'white'; ctx.font = `bold 32px sans-serif`;
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6;
-
-            if (icon) {
-                ctx.font = `bold 40px sans-serif`;
-                ctx.fillText(icon, x + 40, y + h/2 + 2);
-                ctx.font = `bold 32px sans-serif`;
-                ctx.fillText(text, x + w/2 + 15, y + h/2 + 2);
-
-            } else {
-                 ctx.font = `bold 32px sans-serif`;
-                 ctx.fillText(text, x + w/2, y + h/2 + 2);
-            }
-            
+            ctx.fillText(text, x + w/2, y + h/2 + 2);
             ctx.shadowBlur = 0;
         }
 
@@ -860,22 +827,10 @@
             if (gameState === 'start') {
                 skySystem.draw(0.25);
                 drawLogo();
-                const btnW = 300, btnH = 70;
-                const startBtnY = 625;
-                const fsBtnY = startBtnY + btnH + 20; // Position fullscreen button below start
+                const btnW = 300, btnH = 70, btnY = 625; // Adjusted for better centering
                 const startX = GAME_WIDTH/2 - btnW/2;
-                
-                drawMenuButton("Start Game", startX, startBtnY, btnW, btnH);
-                menuButtons.start = {x:startX, y:startBtnY, w:btnW, h:btnH};
-                
-                // Only draw fullscreen button if not already in fullscreen
-                if (!document.fullscreenElement) {
-                    drawMenuButton("Fullscreen", startX, fsBtnY, btnW, btnH, '⛶');
-                    menuButtons.fullscreen = {x:startX, y:fsBtnY, w:btnW, h:btnH};
-                } else {
-                    menuButtons.fullscreen = null;
-                }
-
+                drawMenuButton("Start Game", startX, btnY, btnW, btnH);
+                menuButtons.start = {x:startX, y:btnY, w:btnW, h:btnH};
                 drawMuteButton();
             } else if (gameState === 'characterSelect') {
                 drawCharacterSelectScreen();
