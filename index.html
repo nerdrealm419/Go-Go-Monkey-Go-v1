@@ -2,19 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Go! Go! Monkey, Go!</title>
+    
+    <!-- PWA and Mobile App-like tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Go!Go!Monkey!">
+    <!-- You should create an icon for your game and link it here -->
+    <!-- <link rel="apple-touch-icon" href="icon-192x192.png"> -->
+
+
     <style>
-        body {
+        body, html {
             margin: 0;
             padding: 0;
             overflow: hidden;
             background-color: #000;
+            width: 100%;
+            height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 100vw;
-            height: 100vh;
         }
         canvas {
             display: block;
@@ -29,42 +40,115 @@
     document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const docEl = document.documentElement;
 
         const GAME_WIDTH = 800;
         const GAME_HEIGHT = 1200;
 
+        // --- Game Music & Sounds ---
+        const bgMusic = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/jungle-jive-intro.mp3');
+        const jumpSound = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/cartoon-jump-6462.mp3');
+        const sparkleSound = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/sparkle-355937.mp3');
+        bgMusic.loop = true;
+        bgMusic.volume = 0.005; // A pleasant background volume
+        sparkleSound.volume = 0.005; // Slightly louder than bg music
+        jumpSound.volume = 0.005;
+        let musicStarted = false;
+        let isMuted = false;
+
         // --- Constants Tuned for better game feel ---
         const MONKEY_ACCELERATION = 750, MONKEY_MAX_SPEED = 330, FRICTION = 0.89, GRAVITY = 1400, JUMP_STRENGTH = 660;
         const VINE_COUNT = 10, VINE_MIN_WIDTH = 140, VINE_MAX_WIDTH = 210, VINE_VERTICAL_SPACING = 125, VINE_FALL_TRIGGER_TIME = 15, VINE_JUMPS_TO_BREAK = 3;
-        const VINE_HORIZONTAL_REACH = 220, VINE_FALL_SPEED = 600; // Slightly reduced reach to balance new logic
+        const VINE_HORIZONTAL_REACH = 220, VINE_FALL_SPEED = 600;
         const BANANA_SPAWN_CHANCE = 0.5, BANANA_POINTS = 750;
         const DAY_NIGHT_DISTANCE = 8600;
         const DIFFICULTY_SCORE_INTERVAL = 7500;
-        const VINE_MIN_HORIZONTAL_OFFSET = 80; // Increased min offset to prevent vines from being too close
+        const VINE_MIN_HORIZONTAL_OFFSET = 80;
         const HIGH_SCORE_KEY = 'gogomonkeygo_highscores';
         const UNLOCK_KEY = 'gogomonkeygo_highestscore';
+        const MUTE_KEY = 'gogomonkeygo_muted';
+        const MUTE_BUTTON_RECT = { x: GAME_WIDTH - 70, y: 15, w: 55, h: 55 };
         const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32', '#00FFFF', '#FF69B4'];
         const MEDAL_EMOJIS = ['🥇', '🥈', '🥉', '🏅', '🏅'];
         
         const CHARACTERS = {
-            'brown': { name: 'Classic', unlock: 0, main: '#a1887f', dark: '#6d4c41', face: '#d7ccc8', pupils: '#000000' },
-            'gray':  { name: 'Silver',  unlock: 10000, main: '#9e9e9e', dark: '#616161', face: '#e0e0e0', pupils: '#000000' },
-            'black': { name: 'Shadow',  unlock: 15000, main: '#424242', dark: '#212121', face: '#757575', pupils: '#000000' },
-            'pink':  { name: 'Rose',    unlock: 20000, main: '#f48fb1', dark: '#c2185b', face: '#fce4ec', pupils: '#e91e63' },
-            'white': { name: 'Arctic',  unlock: 35000, main: '#fafafa', dark: '#bdbdbd', face: '#ffffff', pupils: '#2196f3', sparkles: true },
-            'gold':  { name: 'Golden',  unlock: 50000, main: '#ffeb3b', dark: '#f57f17', face: '#fff9c4', pupils: '#000000', sparkles: true, shine: true }
+            'orange':  { name: 'Go!Go!',   unlock: 0,      main: '#f96714', dark: '#ef5a06', face: '#ffdab9', pupils: '#000000' },
+            'brown':   { name: 'CoCo',    unlock: 5000,   main: '#623412', dark: '#401801', face: '#d1bba1', pupils: '#000000' },
+            'gray':    { name: 'Silver',  unlock: 10000,  main: '#9e9e9e', dark: '#616161', face: '#e0e0e0', pupils: '#000000' },
+            'black':   { name: 'Shadow',  unlock: 15000,  main: '#424242', dark: '#212121', face: '#757575', pupils: '#000000' },
+            'pink':    { name: 'Rose',    unlock: 20000,  main: '#f48fb1', dark: '#c2185b', face: '#fce4ec', pupils: '#e91e63' },
+            'white':   { name: 'Arctic',  unlock: 35000,  main: '#fafafa', dark: '#bdbdbd', face: '#ffffff', pupils: '#2196f3', sparkles: true },
+            'gold':    { name: 'Golden',  unlock: 50000,  main: '#ffeb3b', dark: '#f57f17', face: '#fff9c4', pupils: '#000000', sparkles: true, shine: true },
+            'diamond': { name: 'Diamond', unlock: 75000,  main: '#b9f2ff', dark: '#81d4fa', face: '#e1f5fe', pupils: '#0277bd', sparkles: true, shine: true },
+            'rainbow': { name: 'Rainbow', unlock: 100000, face: '#ffffff', pupils: '#000000', isRainbow: true }
         };
-        let selectedCharacterKey = 'brown';
-        let unlockedCharacters = ['brown'];
+        let selectedCharacterKey = 'orange';
+        let unlockedCharacters = ['orange'];
         let newlyUnlockedCharacter = null;
         let characterSelectButtons = [];
 
-
         let scale = 1, offsetX = 0, offsetY = 0;
 
+        // --- Audio Management ---
+        function playSound(sound) {
+            if (!isMuted) {
+                sound.currentTime = 0;
+                sound.play().catch(e => console.warn('Sound playback failed', e));
+            }
+        }
+        
+        function loadMuteState() {
+            isMuted = localStorage.getItem(MUTE_KEY) === 'true';
+        }
+
+        function saveMuteState() {
+            localStorage.setItem(MUTE_KEY, isMuted);
+        }
+
+        function ensureMusicIsPlaying() {
+            if (isMuted) {
+                bgMusic.pause();
+                return;
+            }
+            if (!musicStarted) {
+                const promise = bgMusic.play();
+                if (promise !== undefined) {
+                    promise.then(_ => { musicStarted = true; }).catch(error => {
+                        console.warn('Music could not be started yet (requires user gesture):', error);
+                    });
+                }
+            } else if (bgMusic.paused) {
+                bgMusic.play().catch(e => console.warn('Resuming music failed.', e));
+            }
+        }
+        
+        function toggleMute() {
+            isMuted = !isMuted;
+            saveMuteState();
+            ensureMusicIsPlaying();
+        }
+
+        // Unlock audio context on the first click anywhere.
+        document.addEventListener('click', () => {
+            if (!musicStarted) ensureMusicIsPlaying();
+        }, { once: true });
+
+
+        // --- NEW: Fullscreen API Logic ---
+        function openFullscreen() {
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen();
+            } else if (docEl.webkitRequestFullscreen) { /* Safari */
+                docEl.webkitRequestFullscreen();
+            } else if (docEl.msRequestFullscreen) { /* IE11 */
+                docEl.msRequestFullscreen();
+            }
+        }
+
         function resize() {
-            const windowWidth = window.innerWidth;
-            const windowHeight = window.innerHeight;
+            // Use window.screen.width/height in fullscreen, otherwise innerWidth/Height
+            const windowWidth = document.fullscreenElement ? window.screen.width : window.innerWidth;
+            const windowHeight = document.fullscreenElement ? window.screen.height : window.innerHeight;
             const gameAspectRatio = GAME_WIDTH / GAME_HEIGHT;
             const windowAspectRatio = windowWidth / windowHeight;
 
@@ -88,6 +172,8 @@
             if (skySystem) skySystem.init(true);
         }
         window.addEventListener('resize', resize);
+        // Call resize when fullscreen status changes
+        document.addEventListener('fullscreenchange', resize);
         
         function screenToCanvasCoords(screenX, screenY) {
             return {
@@ -99,56 +185,103 @@
         let lastTime = 0, gameState = 'start', scrollY = 0, score = 0, gameTime = 0, animationFrameId;
         let isNewHighScore = false;
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        let showInstructions = false;
-        const menuButtons = { start: null, instructions: null, closeInstructions: null };
+        let ingameInstructions = { active: false, opacity: 1.0, hasMoved: false };
+        const menuButtons = { start: null, fullscreen: null }; // Add fullscreen button
 
         const keys = {a:0,d:0,ArrowLeft:0,ArrowRight:0};
-        window.addEventListener('keydown', e=>{if(keys.hasOwnProperty(e.key))keys[e.key]=1; if((gameState==='start'||gameState==='gameOver')&&(e.key===' '||e.key==='Enter'))startGameSequence();});
+        window.addEventListener('keydown', e=>{if(keys.hasOwnProperty(e.key)) { keys[e.key]=1; if(gameState === 'playing' && !ingameInstructions.hasMoved) ingameInstructions.hasMoved = true; } if((gameState==='start'||gameState==='gameOver')&&(e.key===' '||e.key==='Enter'))startGameSequence();});
         window.addEventListener('keyup', e=>{if(keys.hasOwnProperty(e.key))keys[e.key]=0;});
         
+        let activeTouches = {};
+
+        function updateMovementKeysFromTouches() {
+            let goLeft = false;
+            let goRight = false;
+            for (const id in activeTouches) {
+                if (activeTouches[id] === 'left') goLeft = true;
+                if (activeTouches[id] === 'right') goRight = true;
+            }
+            if (goRight) {
+                keys.d = 1; keys.ArrowRight = 1;
+                keys.a = 0; keys.ArrowLeft = 0;
+            } else if (goLeft) {
+                keys.a = 1; keys.ArrowLeft = 1;
+                keys.d = 0; keys.ArrowRight = 0;
+            } else {
+                keys.a = 0; keys.d = 0; keys.ArrowLeft = 0; keys.ArrowRight = 0;
+            }
+        }
+
         function handleInteraction(screenX, screenY) {
             const { x, y } = screenToCanvasCoords(screenX, screenY);
+            
+            // Handle mute button clicks first on relevant screens
+            if (['start', 'characterSelect', 'gameOver'].includes(gameState)) {
+                if (x > MUTE_BUTTON_RECT.x && x < MUTE_BUTTON_RECT.x + MUTE_BUTTON_RECT.w && y > MUTE_BUTTON_RECT.y && y < MUTE_BUTTON_RECT.y + MUTE_BUTTON_RECT.h) {
+                    toggleMute();
+                    return; // Interaction handled
+                }
+            }
+
             if (gameState === 'start') {
-                if (showInstructions) {
-                    const btn = menuButtons.closeInstructions;
-                    if (btn && x > btn.x && x < btn.x + btn.w && y > btn.y && y < btn.y + btn.h) {
-                        showInstructions = false;
-                    }
-                } else {
-                    const startBtn = menuButtons.start;
-                    if (startBtn && x > startBtn.x && x < startBtn.x + startBtn.w && y > startBtn.y && y < startBtn.y + startBtn.h) {
-                        startGameSequence();
-                        return;
-                    }
-                    const instrBtn = menuButtons.instructions;
-                    if (instrBtn && x > instrBtn.x && x < instrBtn.x + instrBtn.w && y > instrBtn.y && y < instrBtn.y + instrBtn.h) {
-                        showInstructions = true;
-                    }
+                const startBtn = menuButtons.start;
+                const fsBtn = menuButtons.fullscreen;
+                if (startBtn && x > startBtn.x && x < startBtn.x + startBtn.w && y > startBtn.y && y < startBtn.y + startBtn.h) {
+                    startGameSequence();
+                } else if (fsBtn && x > fsBtn.x && x < fsBtn.x + fsBtn.w && y > fsBtn.y && y < fsBtn.y + fsBtn.h) {
+                    openFullscreen();
                 }
             } else if (gameState === 'characterSelect') {
                 for(const btn of characterSelectButtons) {
                     if (x > btn.x && x < btn.x + btn.w && y > btn.y && y < btn.y + btn.h) {
                         selectedCharacterKey = btn.key;
                         initializeLevel();
-                        return;
                     }
                 }
             } else if (gameState === 'gameOver') {
                 init();
             }
         }
-
+        
         const handleTouchStart = (e) => {
              e.preventDefault();
-             const touch = e.touches[0];
-             if (['start', 'characterSelect', 'gameOver'].includes(gameState)) { handleInteraction(touch.clientX, touch.clientY); return; }
-             if (touch.clientX < window.innerWidth / 2) { keys.a = 1; keys.d = 0; keys.ArrowLeft=1; keys.ArrowRight=0; } 
-             else { keys.d = 1; keys.a = 0; keys.ArrowRight=1; keys.ArrowLeft=0; }
+             const changed = e.changedTouches;
+             if (['start', 'characterSelect', 'gameOver'].includes(gameState)) {
+                 handleInteraction(changed[0].clientX, changed[0].clientY);
+                 return;
+             }
+             if (ingameInstructions.active && !ingameInstructions.hasMoved) { ingameInstructions.hasMoved = true; }
+             for (let i = 0; i < changed.length; i++) {
+                 const touch = changed[i];
+                 activeTouches[touch.identifier] = touch.clientX < window.innerWidth / 2 ? 'left' : 'right';
+             }
+             updateMovementKeysFromTouches();
         };
-        const handleTouchEnd = (e) => { e.preventDefault(); keys.a = 0; keys.d = 0; keys.ArrowLeft=0; keys.ArrowRight=0; };
-        
-        canvas.addEventListener('click', (e) => handleInteraction(e.clientX, e.clientY));
+        const handleTouchMove = (e) => {
+            e.preventDefault();
+            if (gameState !== 'playing') return;
+            const changed = e.changedTouches;
+            for (let i = 0; i < changed.length; i++) {
+                const touch = changed[i];
+                if (activeTouches.hasOwnProperty(touch.identifier)) {
+                    activeTouches[touch.identifier] = touch.clientX < window.innerWidth / 2 ? 'left' : 'right';
+                }
+            }
+            updateMovementKeysFromTouches();
+        };
+        const handleTouchEnd = (e) => {
+            e.preventDefault();
+            const changed = e.changedTouches;
+            for (let i = 0; i < changed.length; i++) {
+                const touch = changed[i];
+                delete activeTouches[touch.identifier];
+            }
+            updateMovementKeysFromTouches();
+        };
+
+        canvas.addEventListener('click', (e) => { if (!isTouchDevice) handleInteraction(e.clientX, e.clientY); });
         canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
         canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
         canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
@@ -239,7 +372,7 @@
                 }
             },
             draw() { drawMonkeyAt(this.x, this.y - scrollY, selectedCharacterKey, this); },
-            jump(){this.vy=-JUMP_STRENGTH;this.squash=0.7;},
+            jump(){this.vy=-JUMP_STRENGTH;this.squash=0.7; playSound(jumpSound); },
             land(){ this.onGround=true; this.squash=1.4; this.isScared = false; },
             collectBanana(){
                 this.heartEyesTimer = 0.4; this.attachedHearts.length = 0;
@@ -258,11 +391,19 @@
             ctx.translate(x, y);
             ctx.scale(size / monkey.width, size / monkey.width);
             const char = CHARACTERS[charKey];
-            ctx.fillStyle = char.main; ctx.beginPath(); ctx.arc(16, -6, 10, 0, 2 * Math.PI); ctx.arc(-16, -6, 10, 0, 2 * Math.PI); ctx.fill();
+            
+            let mainColor = char.main;
+            if (char.isRainbow) {
+                const hue = (performance.now() / 20) % 360;
+                mainColor = `hsl(${hue}, 90%, 60%)`;
+            }
+            ctx.fillStyle = mainColor;
+            
+            ctx.beginPath(); ctx.arc(16, -6, 10, 0, 2 * Math.PI); ctx.arc(-16, -6, 10, 0, 2 * Math.PI); ctx.fill();
             ctx.beginPath(); ctx.arc(0, 0, 22, 0, 2 * Math.PI); ctx.fill();
             ctx.fillStyle = char.face; ctx.beginPath(); ctx.ellipse(0, 2, 18, 16, 0, 0, 2 * Math.PI); ctx.fill();
             drawEye(char, -6, -2, false, false, false, 0); drawEye(char, 6, -2, false, false, false, 0);
-            ctx.strokeStyle = char.dark; ctx.lineWidth = 2; ctx.lineCap = 'round';
+            ctx.strokeStyle = char.dark || '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round';
             ctx.beginPath(); ctx.moveTo(-4, 7); ctx.quadraticCurveTo(0, 9, 4, 7); ctx.stroke();
             ctx.restore();
         }
@@ -272,31 +413,41 @@
             const char = CHARACTERS[charKey];
             const bodyW=state.width*(2-state.squash), bodyH=state.height*state.squash;
             
-            drawTail(state, char.dark);
+            let mainColor = char.main;
+            let darkColor = char.dark;
+
+            if (char.isRainbow) {
+                const hue = (gameTime * 60) % 360;
+                mainColor = `hsl(${hue}, 90%, 60%)`;
+                darkColor = `hsl(${hue}, 70%, 30%)`;
+            }
+
+            drawTail(state, darkColor);
             const legAngle=Math.sin(Date.now()/200)*0.1-state.vy/2000;
-            drawLeg(-bodyW/4,bodyH/4,legAngle,char.main); drawLeg(bodyW/4,bodyH/4,legAngle,char.main);
+            drawLeg(-bodyW/4,bodyH/4,legAngle,mainColor); drawLeg(bodyW/4,bodyH/4,legAngle,mainColor);
             
             if (char.shine) {
                 const shineGrad = ctx.createLinearGradient(-bodyW/2, -bodyH/2, bodyW/2, bodyH/2);
                 const shinePos = (gameTime*2) % 2 - 0.5;
-                shineGrad.addColorStop(Math.max(0, shinePos - 0.2), char.main);
-                shineGrad.addColorStop(Math.max(0, shinePos), 'white');
-                shineGrad.addColorStop(Math.max(0, shinePos + 0.2), char.main);
+                const shineColor = charKey === 'diamond' ? '#e3f2fd' : 'white';
+                shineGrad.addColorStop(Math.max(0, shinePos - 0.2), mainColor);
+                shineGrad.addColorStop(Math.max(0, shinePos), shineColor);
+                shineGrad.addColorStop(Math.max(0, shinePos + 0.2), mainColor);
                 ctx.fillStyle = shineGrad;
             } else {
-                ctx.fillStyle=char.main;
+                ctx.fillStyle=mainColor;
             }
             ctx.beginPath(); ctx.roundRect(-bodyW/2,-bodyH/2,bodyW,bodyH,12); ctx.fill();
 
             ctx.save(); ctx.translate(0,-bodyH/2 - 12*state.squash); ctx.rotate(state.headAngle);
-            ctx.fillStyle=char.main; ctx.beginPath();ctx.arc(16,-6,10,0,2*Math.PI);ctx.arc(-16,-6,10,0,2*Math.PI);ctx.fill();
-            ctx.fillStyle=char.main; ctx.beginPath();ctx.arc(0,0,22,0,2*Math.PI);ctx.fill();
+            ctx.fillStyle=mainColor; ctx.beginPath();ctx.arc(16,-6,10,0,2*Math.PI);ctx.arc(-16,-6,10,0,2*Math.PI);ctx.fill();
+            ctx.fillStyle=mainColor; ctx.beginPath();ctx.arc(0,0,22,0,2*Math.PI);ctx.fill();
             ctx.fillStyle=char.face; ctx.beginPath();ctx.ellipse(0, 2, 18, 16, 0, 0, 2*Math.PI);ctx.fill();
             
             drawEye(char, -6, -2, state.heartEyesTimer > 0, state.isScared, state.isBlinking, state.headAngle);
             drawEye(char, 6, -2, state.heartEyesTimer > 0, state.isScared, state.isBlinking, state.headAngle);
             
-            ctx.strokeStyle=char.dark; ctx.lineWidth=2; ctx.lineCap='round'; ctx.beginPath();
+            ctx.strokeStyle=darkColor; ctx.lineWidth=2; ctx.lineCap='round'; ctx.beginPath();
             if (state.isScared) {
                 ctx.moveTo(-6, 9); ctx.quadraticCurveTo(-2, 6, 0, 9); ctx.quadraticCurveTo(2, 12, 6, 9);
             } else if (state.vy < -210) {
@@ -312,8 +463,8 @@
                 ctx.fillText('❤️', h.ox, h.oy); ctx.restore();
             });
             ctx.restore(); 
-            drawSwingingArm(-bodyW / 2 + 8, -bodyH / 4, state.leftArmAngle, char.main);
-            drawSwingingArm(bodyW / 2 - 8, -bodyH / 4, state.rightArmAngle, char.main);
+            drawSwingingArm(-bodyW / 2 + 8, -bodyH / 4, state.leftArmAngle, mainColor);
+            drawSwingingArm(bodyW / 2 - 8, -bodyH / 4, state.rightArmAngle, mainColor);
             ctx.restore();
         }
 
@@ -321,10 +472,10 @@
             if (isHeart) {
                 ctx.font = `bold 8px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('❤️', x, y);
             } else if (isScared) {
-                ctx.strokeStyle = char.dark; ctx.lineWidth = 2; ctx.lineCap = 'round';
+                ctx.strokeStyle = char.dark || '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round';
                 ctx.beginPath(); ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y); ctx.stroke();
             } else if (isBlinking) {
-                ctx.strokeStyle = char.dark; ctx.lineWidth = 2; ctx.lineCap = 'round';
+                ctx.strokeStyle = char.dark || '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round';
                 ctx.beginPath(); ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y); ctx.stroke();
             } else {
                 ctx.fillStyle = 'white'; ctx.strokeStyle = '#a79a95'; ctx.lineWidth = 1;
@@ -355,9 +506,9 @@
         function getHighestScore() { return parseInt(localStorage.getItem(UNLOCK_KEY) || '0', 10); }
         function checkUnlocks() {
             const highestScore = getHighestScore();
-            unlockedCharacters = ['brown'];
+            unlockedCharacters = ['orange'];
             for (const key in CHARACTERS) {
-                if (key !== 'brown' && highestScore >= CHARACTERS[key].unlock) {
+                if (key !== 'orange' && highestScore >= CHARACTERS[key].unlock) {
                     unlockedCharacters.push(key);
                 }
             }
@@ -406,7 +557,6 @@
 
         function getDifficultyLevel(currentScore) { return Math.floor(currentScore / DIFFICULTY_SCORE_INTERVAL); }
 
-        // --- CORRECTED/IMPROVED FUNCTION ---
         function createVine(y, prevVine, currentScore = 0) {
             const difficulty = getDifficultyLevel(currentScore);
             const widthReduction = difficulty * 9.3;
@@ -417,11 +567,7 @@
             let x;
 
             if (prevVine) {
-                // This new logic ensures vines are always reachable by calculating placement
-                // based on the CENTER of the previous vine, not its edge.
                 const prevVineCenterX = prevVine.x + prevVine.width / 2;
-
-                // Define left and right spawn zones for the NEW vine's CENTER
                 const leftZone_end = prevVineCenterX - VINE_MIN_HORIZONTAL_OFFSET;
                 const leftZone_start = prevVineCenterX - VINE_HORIZONTAL_REACH;
                 const rightZone_start = prevVineCenterX + VINE_MIN_HORIZONTAL_OFFSET;
@@ -433,7 +579,6 @@
 
                 let newVineCenterX;
                 if (totalZone_size <= 0) {
-                    // Failsafe if zones are invalid (e.g., screen is too narrow)
                     newVineCenterX = GAME_WIDTH / 2;
                 } else {
                     const rand = Math.random() * totalZone_size;
@@ -443,17 +588,11 @@
                         newVineCenterX = rightZone_start + (rand - leftZone_size);
                     }
                 }
-                
-                // Calculate the final x position from the chosen center
                 x = newVineCenterX - width / 2;
-
-                // Clamp the final position to ensure the vine is fully on-screen
                 const margin = 15;
                 x = Math.max(margin, x);
                 x = Math.min(x, GAME_WIDTH - width - margin);
-
             } else { 
-                // First vine
                 x = Math.random() * (GAME_WIDTH - width); 
             }
             
@@ -483,7 +622,6 @@
         
         function init() {
             gameState = 'start';
-            showInstructions = false;
             if (!animationFrameId) {
                 lastTime = performance.now();
                 dt = 0;
@@ -496,15 +634,17 @@
             if (unlockedCharacters.length > 1) {
                 gameState = 'characterSelect';
             } else {
-                selectedCharacterKey = 'brown';
+                selectedCharacterKey = 'orange';
                 initializeLevel();
             }
         }
 
         function initializeLevel() {
-            scrollY=0;score=0;gameTime=0;gameState='playing';particles.length=0; isNewHighScore=false; newlyUnlockedCharacter=null; bananaConfetti.length=0; showInstructions=false; monkey.attachedHearts.length = 0;
+            ensureMusicIsPlaying();
+            scrollY=0;score=0;gameTime=0;gameState='playing';particles.length=0; isNewHighScore=false; newlyUnlockedCharacter=null; bananaConfetti.length=0; monkey.attachedHearts.length = 0;
             monkey.x=GAME_WIDTH/2-monkey.width/2;monkey.y=GAME_HEIGHT-150;monkey.vx=0;monkey.vy=0;
             monkey.isScared = false;
+            ingameInstructions = { active: true, opacity: 1.0, hasMoved: false };
             vinePool.length=0;bananaPool.length=0;let lastVine=null;
             for(let i=0;i<VINE_COUNT;i++){const v=createVine(GAME_HEIGHT-100-i*VINE_VERTICAL_SPACING,lastVine,0);vinePool.push(v);lastVine=v;}
             vinePool[0].x=monkey.x+monkey.width/2-vinePool[0].width/2;vinePool[0].y=monkey.y+monkey.height+10;
@@ -513,14 +653,26 @@
         let dt = 0;
         function update() {
             gameTime+=dt; 
-            if (gameState === 'playing') monkey.update(dt);
-            else if (['start', 'characterSelect'].includes(gameState)) { skySystem.update(dt, 0.5); return; }
+
+            if (gameState === 'playing') {
+                monkey.update(dt);
+                if (ingameInstructions.active && ingameInstructions.hasMoved) {
+                    ingameInstructions.opacity -= 2.0 * dt;
+                    if (ingameInstructions.opacity <= 0) {
+                        ingameInstructions.active = false;
+                    }
+                }
+            }
+            else if (['start', 'characterSelect'].includes(gameState)) { 
+                skySystem.update(dt, 0.5); 
+                return; 
+            }
             
             const gameClock = (scrollY / DAY_NIGHT_DISTANCE) % 1.0; const nightlight = 1 - (0.5 - Math.cos(gameClock * 2 * Math.PI) * 0.5);
             skySystem.update(dt, nightlight);
 
             if(monkey.vy>0){for(const v of vinePool){if(!v.isFalling&&monkey.x+monkey.width>v.x&&monkey.x<v.x+v.width&&monkey.y+monkey.height+monkey.vy*dt>v.y&&monkey.y+monkey.height<=v.y+20){monkey.y=v.y-monkey.height;monkey.jump();monkey.land();v.dip=15;if(gameTime>VINE_FALL_TRIGGER_TIME){v.jumpsLeft--;if(v.jumpsLeft<=0){v.isFalling=true; for(let i=0;i<5;i++)particles.push({x:v.x+Math.random()*v.width,y:v.y,vx:(Math.random()-0.5)*40,vy:Math.random()*40,l:2,type:'leaf'});}} break;}}}
-            for(const b of bananaPool){if(!b.isCollected&&Math.hypot(monkey.x+monkey.width/2-b.x,monkey.y+monkey.height/2-b.y)<50){b.isCollected=true;score+=BANANA_POINTS;monkey.collectBanana();for(let i=0;i<15;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*185,vy:(Math.random()-0.5)*185,l:1,type:'sparkle'});}}
+            for(const b of bananaPool){if(!b.isCollected&&Math.hypot(monkey.x+monkey.width/2-b.x,monkey.y+monkey.height/2-b.y)<50){b.isCollected=true;score+=BANANA_POINTS;monkey.collectBanana();playSound(sparkleSound);for(let i=0;i<15;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*185,vy:(Math.random()-0.5)*185,l:1,type:'sparkle'});}}
             
             const scrollThr=GAME_HEIGHT*0.4;if(monkey.y-scrollY<scrollThr){const s=(monkey.y-scrollY)-scrollThr;scrollY+=s;score+=Math.floor(-s);}
             particles.forEach((p,i)=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.l-=dt;if(p.l<=0)particles.splice(i,1);});
@@ -549,58 +701,114 @@
             }
         }
         
-        function drawBananaLogo(x, y) {
-            const title = 'Go! Go! Monkey, Go!';
-            const font_size = Math.min(60, GAME_WIDTH / 10);
-            ctx.font = `bold ${font_size}px 'Comic Sans MS', 'Chalkduster', sans-serif`;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            const textMetrics = ctx.measureText(title); let currentX = x - textMetrics.width / 2;
-            for (let i = 0; i < title.length; i++) {
-                const char = title[i]; const charMetrics = ctx.measureText(char);
+        function drawAnimatedBeveledLine(text, x, y, size, mainFill, bevelOffset) {
+            ctx.font = `bold ${size}px 'Comic Sans MS', 'Chalkduster', sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const textMetrics = ctx.measureText(text);
+            let currentX = x - textMetrics.width / 2;
+            const highlightColor = 'rgba(255, 255, 255, 0.4)';
+            const shadowColor = 'rgba(0, 0, 0, 0.25)';
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charMetrics = ctx.measureText(char);
+                const charX = currentX + charMetrics.width / 2;
+                
                 ctx.save();
-                ctx.translate(currentX + charMetrics.width / 2, y);
-                ctx.rotate((Math.sin(i * 0.8 + gameTime * 2)) * 0.08);
-                const grad = ctx.createLinearGradient(0, -font_size/2, 0, font_size/2);
-                grad.addColorStop(0, '#f9f954'); grad.addColorStop(1, '#e3c600');
-                ctx.fillStyle = grad; ctx.strokeStyle = '#4a2d1e';
-                ctx.lineWidth = 8; ctx.lineJoin = 'round';
-                ctx.strokeText(char, 0, 0); ctx.fillText(char, 0, 0);
+                ctx.translate(charX, y);
+                ctx.rotate((Math.sin(i * 0.8 + gameTime * 3)) * 0.1);
+
+                ctx.fillStyle = highlightColor;
+                ctx.fillText(char, -bevelOffset, -bevelOffset);
+                ctx.fillStyle = shadowColor;
+                ctx.fillText(char, bevelOffset, bevelOffset);
+
+                ctx.strokeStyle = '#4a2d1e';
+                ctx.lineWidth = size / 10;
+                ctx.lineJoin = 'round';
+                ctx.strokeText(char, 0, 0);
+
+                ctx.fillStyle = mainFill;
+                ctx.fillText(char, 0, 0);
+
                 ctx.restore();
                 currentX += charMetrics.width;
             }
         }
+
+        function drawLogo() {
+            const baseY = 280; // Adjusted for better centering
+            const lineSpacing = 120;
+
+            const size1 = 110;
+            const grad1 = ctx.createLinearGradient(0, baseY - size1/2, 0, baseY + size1/2);
+            grad1.addColorStop(0, '#f9f954'); grad1.addColorStop(1, '#e3c600');
+            drawAnimatedBeveledLine('Go! Go!', GAME_WIDTH / 2, baseY, size1, grad1, 4);
+
+            const size2 = 100;
+            const y2 = baseY + lineSpacing;
+            const grad2 = ctx.createLinearGradient(0, y2 - size2/2, 0, y2 + size2/2);
+            grad2.addColorStop(0, CHARACTERS.orange.main);
+            grad2.addColorStop(1, CHARACTERS.orange.dark);
+            drawAnimatedBeveledLine('Monkey,', GAME_WIDTH / 2, y2, size2, grad2, 3);
+            
+            const y3 = baseY + lineSpacing * 2;
+            drawAnimatedBeveledLine('Go!', GAME_WIDTH / 2, y3, size1, grad1, 4);
+        }
         
-        function drawMenuButton(text, x, y, w, h) {
+        function drawMenuButton(text, x, y, w, h, icon = '') {
             const grad = ctx.createLinearGradient(x, y, x, y + h);
             grad.addColorStop(0, 'hsl(120, 60%, 45%)'); grad.addColorStop(1, 'hsl(120, 60%, 30%)');
             ctx.fillStyle = grad;
             ctx.strokeStyle = 'hsl(120, 80%, 85%)'; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.roundRect(x, y, w, h, 20); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = 'white'; ctx.font = `bold 32px sans-serif`;
+            ctx.fillStyle = 'white';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6;
-            ctx.fillText(text, x + w/2, y + h/2 + 2);
+
+            if (icon) {
+                ctx.font = `bold 40px sans-serif`;
+                ctx.fillText(icon, x + 40, y + h/2 + 2);
+                ctx.font = `bold 32px sans-serif`;
+                ctx.fillText(text, x + w/2 + 15, y + h/2 + 2);
+
+            } else {
+                 ctx.font = `bold 32px sans-serif`;
+                 ctx.fillText(text, x + w/2, y + h/2 + 2);
+            }
+            
             ctx.shadowBlur = 0;
         }
 
-        function drawInstructionsPopup() {
-            const w = GAME_WIDTH * 0.9, h = GAME_HEIGHT * 0.7;
-            const x = GAME_WIDTH/2 - w/2, y = GAME_HEIGHT/2 - h/2;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0,0,GAME_WIDTH,GAME_HEIGHT);
-            ctx.fillStyle = '#a1887f'; ctx.strokeStyle = '#d7ccc8'; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.roundRect(x, y, w, h, 18.5); ctx.fill(); ctx.stroke();
-            ctx.fillStyle='white'; ctx.textAlign='center';
-            ctx.font=`bold 36px sans-serif`; ctx.fillText('Instructions', GAME_WIDTH/2, y + 60);
-            ctx.font=`24px sans-serif`;
-            const lines = [
-                'Desktop: Use A/D or Arrow Keys to move.', 'Mobile: Tap left or right side to move.',
-                '', 'Jump from vine to vine to climb higher!', 'Some vines will break after a few jumps.',
-                'Collect bananas for extra points!'
-            ];
-            lines.forEach((line, i) => ctx.fillText(line, GAME_WIDTH/2, y + 160 + i * 40));
-            const btnW=180, btnH=60, btnX=GAME_WIDTH/2-btnW/2, btnY=y+h-btnH-30;
-            drawMenuButton("Close", btnX, btnY, btnW, btnH);
-            menuButtons.closeInstructions = {x:btnX, y:btnY, w:btnW, h:btnH};
+        function drawMuteButton() {
+            ctx.save();
+            ctx.globalAlpha = 0.6;
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.roundRect(MUTE_BUTTON_RECT.x, MUTE_BUTTON_RECT.y, MUTE_BUTTON_RECT.w, MUTE_BUTTON_RECT.h, 15);
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.font = '40px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const emoji = isMuted ? '🔇' : '🔊';
+            ctx.fillText(emoji, MUTE_BUTTON_RECT.x + MUTE_BUTTON_RECT.w / 2, MUTE_BUTTON_RECT.y + MUTE_BUTTON_RECT.h / 2 + 2);
+            ctx.restore();
+        }
+
+        function drawInGameInstructions() {
+            if (!ingameInstructions.active) return;
+            ctx.save();
+            ctx.globalAlpha = ingameInstructions.opacity;
+            ctx.textAlign = 'center';
+            ctx.font = `bold 28px sans-serif`;
+            ctx.fillStyle = 'white';
+            ctx.shadowColor = 'black'; ctx.shadowBlur = 8;
+            const instructionText = isTouchDevice ? "Tap Left/Right to Move!" : "Use A/D or Arrow Keys to Move!";
+            ctx.fillText(instructionText, GAME_WIDTH/2, GAME_HEIGHT * 0.25);
+            ctx.restore();
         }
         
         function drawCharacterSelectScreen() {
@@ -613,11 +821,13 @@
             
             characterSelectButtons = [];
             const cols = 3;
-            const rows = Math.ceil(unlockedCharacters.length / cols);
+            const unlockedCount = unlockedCharacters.length;
+            const rows = Math.ceil(unlockedCount / cols);
             const boxSize = 160, padding = 30;
             const totalWidth = cols * boxSize + (cols-1) * padding;
+            const totalHeight = rows * boxSize + (rows-1) * padding;
             const startX = GAME_WIDTH/2 - totalWidth/2;
-            const startY = GAME_HEIGHT/2 - (rows * boxSize + (rows-1) * padding)/2;
+            const startY = GAME_HEIGHT/2 - totalHeight/2;
 
             unlockedCharacters.forEach((key, i) => {
                 const char = CHARACTERS[key];
@@ -649,16 +859,27 @@
 
             if (gameState === 'start') {
                 skySystem.draw(0.25);
-                drawBananaLogo(GAME_WIDTH/2, GAME_HEIGHT*0.25);
-                const btnW = 300, btnH = 70, btnY = GAME_HEIGHT*0.55;
-                const startX = GAME_WIDTH/2 - btnW/2, instrX = GAME_WIDTH/2 - btnW/2;
-                drawMenuButton("Start Game", startX, btnY, btnW, btnH);
-                drawMenuButton("Instructions", instrX, btnY + btnH + 20, btnW, btnH);
-                menuButtons.start = {x:startX, y:btnY, w:btnW, h:btnH};
-                menuButtons.instructions = {x:instrX, y:(btnY+btnH+20), w:btnW, h:btnH};
-                if(showInstructions) drawInstructionsPopup();
+                drawLogo();
+                const btnW = 300, btnH = 70;
+                const startBtnY = 625;
+                const fsBtnY = startBtnY + btnH + 20; // Position fullscreen button below start
+                const startX = GAME_WIDTH/2 - btnW/2;
+                
+                drawMenuButton("Start Game", startX, startBtnY, btnW, btnH);
+                menuButtons.start = {x:startX, y:startBtnY, w:btnW, h:btnH};
+                
+                // Only draw fullscreen button if not already in fullscreen
+                if (!document.fullscreenElement) {
+                    drawMenuButton("Fullscreen", startX, fsBtnY, btnW, btnH, '⛶');
+                    menuButtons.fullscreen = {x:startX, y:fsBtnY, w:btnW, h:btnH};
+                } else {
+                    menuButtons.fullscreen = null;
+                }
+
+                drawMuteButton();
             } else if (gameState === 'characterSelect') {
                 drawCharacterSelectScreen();
+                drawMuteButton();
             } else {
                 const gameClock = (scrollY / DAY_NIGHT_DISTANCE) % 1.0;
                 skySystem.draw(gameClock);
@@ -674,6 +895,9 @@
                 vinePool.forEach(drawVine);
                 bananaPool.forEach(drawBanana);
                 monkey.draw();
+                
+                drawInGameInstructions();
+                
                 ctx.fillStyle='white';ctx.font=`bold 30px sans-serif`;ctx.textAlign='left';ctx.shadowColor='black';ctx.shadowBlur=5;
                 ctx.fillText(`Score: ${Math.floor(score)}`, 20, 45);
                 ctx.shadowBlur=0;
@@ -716,6 +940,7 @@
                     ctx.fillStyle='white';
                     const playAgainText = isTouchDevice ? 'Tap anywhere to Continue' : 'Click or Press Space to Continue';
                     ctx.fillText(playAgainText, GAME_WIDTH/2, GAME_HEIGHT - 80);
+                    drawMuteButton();
                 }
             }
         }
@@ -729,6 +954,7 @@
         }
         
         resize();
+        loadMuteState();
         checkUnlocks();
         init();
     });
