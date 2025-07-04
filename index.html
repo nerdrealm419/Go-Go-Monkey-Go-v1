@@ -60,7 +60,7 @@
         const HIGH_SCORE_KEY = 'gogomonkeygo_highscores';
         const UNLOCK_KEY = 'gogomonkeygo_highestscore';
         const MUTE_KEY = 'gogomonkeygo_muted';
-        const MUTE_BUTTON_SIZE = { w: 55, h: 55 }; // Size of the button
+        const MUTE_BUTTON_RECT = { x: GAME_WIDTH - 70, y: 15, w: 55, h: 55 };
         const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32', '#00FFFF', '#FF69B4'];
         const MEDAL_EMOJIS = ['🥇', '🥈', '🥉', '🏅', '🏅'];
         
@@ -87,8 +87,6 @@
         let characterSelectButtons = [];
 
         let scale = 1, offsetX = 0, offsetY = 0;
-        let safeArea = { x: 0, y: 0, w: GAME_WIDTH, h: GAME_HEIGHT };
-        let MUTE_BUTTON_RECT = { x: 0, y: 0, w: 0, h: 0 }; 
 
         // --- Audio Management ---
         function playSound(sound) {
@@ -129,6 +127,7 @@
             ensureMusicIsPlaying();
         }
 
+        // Unlock audio context on the first click anywhere.
         document.addEventListener('click', () => {
             if (!musicStarted) ensureMusicIsPlaying();
         }, { once: true });
@@ -138,34 +137,20 @@
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
 
-            // This is the "Cover" scaling. It makes the game world large enough
-            // to fill the entire screen, with no black bars.
-            scale = Math.max(windowWidth / GAME_WIDTH, windowHeight / GAME_HEIGHT);
+            // **MODIFICATION START**
+            // Replaced the scaling logic with a more robust "contain" method.
+            // This calculates the best scale to fit the game inside the window
+            // without any stretching or distortion, which is the safest approach
+            // for ensuring the game looks correct on all devices.
+            scale = Math.min(windowWidth / GAME_WIDTH, windowHeight / GAME_HEIGHT);
 
             canvas.style.width = `${GAME_WIDTH * scale}px`;
             canvas.style.height = `${GAME_HEIGHT * scale}px`;
+            // **MODIFICATION END**
             
             canvas.width = GAME_WIDTH;
             canvas.height = GAME_HEIGHT;
 
-            // Calculate the actual visible part of the game world (the "viewfinder").
-            const visibleWidth = windowWidth / scale;
-            const visibleHeight = windowHeight / scale;
-            safeArea = {
-                x: (GAME_WIDTH - visibleWidth) / 2,
-                y: (GAME_HEIGHT - visibleHeight) / 2,
-                w: visibleWidth,
-                h: visibleHeight
-            };
-
-            // Position UI elements relative to this safe area.
-            MUTE_BUTTON_RECT = {
-                x: safeArea.x + safeArea.w - MUTE_BUTTON_SIZE.w - 15,
-                y: safeArea.y + 15,
-                w: MUTE_BUTTON_SIZE.w,
-                h: MUTE_BUTTON_SIZE.h
-            };
-            
             const rect = canvas.getBoundingClientRect();
             offsetX = rect.left;
             offsetY = rect.top;
@@ -214,10 +199,11 @@
         function handleInteraction(screenX, screenY) {
             const { x, y } = screenToCanvasCoords(screenX, screenY);
             
+            // Handle mute button clicks first on relevant screens
             if (['start', 'characterSelect', 'gameOver'].includes(gameState)) {
                 if (x > MUTE_BUTTON_RECT.x && x < MUTE_BUTTON_RECT.x + MUTE_BUTTON_RECT.w && y > MUTE_BUTTON_RECT.y && y < MUTE_BUTTON_RECT.y + MUTE_BUTTON_RECT.h) {
                     toggleMute();
-                    return;
+                    return; // Interaction handled
                 }
             }
 
@@ -425,7 +411,7 @@
                 const shineGrad = ctx.createLinearGradient(-bodyW/2, -bodyH/2, bodyW/2, bodyH/2);
                 const shinePos = (Math.sin(gameTime * 4) + 1) / 2;
                 const shineColor = charKey === 'diamond' ? '#e3f2fd' : 'white';
-                const shineWidth = 0.1; 
+                const shineWidth = 0.1; // Controls how wide the shine band is
                 shineGrad.addColorStop(Math.max(0, shinePos - shineWidth), mainColor);
                 shineGrad.addColorStop(shinePos, shineColor);
                 shineGrad.addColorStop(Math.min(1, shinePos + shineWidth), mainColor);
@@ -559,33 +545,37 @@
             const currentMaxWidth = Math.max(VINE_MIN_WIDTH * 0.7, VINE_MAX_WIDTH - widthReduction);
             const currentMinWidth = Math.max(VINE_MIN_WIDTH * 0.6, VINE_MIN_WIDTH - widthReduction);
             const width = currentMinWidth + Math.random() * (currentMaxWidth - currentMinWidth);
-            const jumpsLeft = Math.max(2, VINE_JUMPS_to_BREAK - Math.floor(difficulty / 2.0));
+            const jumpsLeft = Math.max(2, VINE_JUMPS_TO_BREAK - Math.floor(difficulty / 2.0));
             let x;
-            
-            // **MODIFICATION: Ensure vines spawn within the visible safe area**
-            const spawnableWidth = safeArea.w - width - 30; // 15px margin on each side
-            const spawnableX = safeArea.x + 15;
 
             if (prevVine) {
                 const prevVineCenterX = prevVine.x + prevVine.width / 2;
                 const leftZone_end = prevVineCenterX - VINE_MIN_HORIZONTAL_OFFSET;
+                const leftZone_start = prevVineCenterX - VINE_HORIZONTAL_REACH;
                 const rightZone_start = prevVineCenterX + VINE_MIN_HORIZONTAL_OFFSET;
-                
+                const rightZone_end = prevVineCenterX + VINE_HORIZONTAL_REACH;
+
+                const leftZone_size = Math.max(0, leftZone_end - leftZone_start);
+                const rightZone_size = Math.max(0, rightZone_end - rightZone_start);
+                const totalZone_size = leftZone_size + rightZone_size;
+
                 let newVineCenterX;
-                // Simplified logic: Alternate sides if possible, otherwise place randomly
-                if (Math.random() > 0.5) { // Try right
-                    newVineCenterX = rightZone_start + Math.random() * (VINE_HORIZONTAL_REACH - VINE_MIN_HORIZONTAL_OFFSET);
-                } else { // Try left
-                    newVineCenterX = leftZone_end - Math.random() * (VINE_HORIZONTAL_REACH - VINE_MIN_HORIZONTAL_OFFSET);
+                if (totalZone_size <= 0) {
+                    newVineCenterX = GAME_WIDTH / 2;
+                } else {
+                    const rand = Math.random() * totalZone_size;
+                    if (rand < leftZone_size) {
+                        newVineCenterX = leftZone_start + rand;
+                    } else {
+                        newVineCenterX = rightZone_start + (rand - leftZone_size);
+                    }
                 }
                 x = newVineCenterX - width / 2;
-                
-                // Clamp the vine position to be within the safe, spawnable area
-                x = Math.max(spawnableX, x);
-                x = Math.min(x, spawnableX + spawnableWidth);
-
+                const margin = 15;
+                x = Math.max(margin, x);
+                x = Math.min(x, GAME_WIDTH - width - margin);
             } else { 
-                x = spawnableX + Math.random() * spawnableWidth; 
+                x = Math.random() * (GAME_WIDTH - width); 
             }
             
             const leaves=[];for(let i=0;i<width/14.5;i++){leaves.push({x:Math.random()*width,y:Math.random()*6.5-3.3,s:Math.random()*4+4,a:Math.random()*Math.PI,color:`hsl(120,50%,${25+Math.random()*20}%)`});}
@@ -666,14 +656,12 @@
             if(monkey.vy>0){for(const v of vinePool){if(!v.isFalling&&monkey.x+monkey.width>v.x&&monkey.x<v.x+v.width&&monkey.y+monkey.height+monkey.vy*dt>v.y&&monkey.y+monkey.height<=v.y+20){monkey.y=v.y-monkey.height;monkey.jump();monkey.land();v.dip=15;if(gameTime>VINE_FALL_TRIGGER_TIME){v.jumpsLeft--;if(v.jumpsLeft<=0){v.isFalling=true; for(let i=0;i<5;i++)particles.push({x:v.x+Math.random()*v.width,y:v.y,vx:(Math.random()-0.5)*40,vy:Math.random()*40,l:2,type:'leaf'});}} break;}}}
             for(const b of bananaPool){if(!b.isCollected&&Math.hypot(monkey.x+monkey.width/2-b.x,monkey.y+monkey.height/2-b.y)<50){b.isCollected=true;score+=BANANA_POINTS;monkey.collectBanana();playSound(sparkleSound);for(let i=0;i<15;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*185,vy:(Math.random()-0.5)*185,l:1,type:'sparkle'});}}
             
-            const scrollThr = safeArea.y + safeArea.h * 0.4;
-            if(monkey.y-scrollY < scrollThr){const s=(monkey.y-scrollY)-scrollThr;scrollY+=s;score+=Math.floor(-s);}
-
+            const scrollThr=GAME_HEIGHT*0.4;if(monkey.y-scrollY<scrollThr){const s=(monkey.y-scrollY)-scrollThr;scrollY+=s;score+=Math.floor(-s);}
             particles.forEach((p,i)=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.l-=dt;if(p.l<=0)particles.splice(i,1);});
             
             vinePool.forEach((v) => {
                 if (v.isFalling) { v.y += VINE_FALL_SPEED * dt; }
-                if (v.y -scrollY > GAME_HEIGHT) { // Check against full game height
+                if (v.y -scrollY > GAME_HEIGHT + 40) {
                     let highestVine = null; let highestY = Infinity;
                     for (const otherVine of vinePool) { if (otherVine.y < highestY) { highestY = otherVine.y; highestVine = otherVine; } }
                     const difficulty = getDifficultyLevel(score), spacingIncrease = difficulty * 5.3, newSpacing = VINE_VERTICAL_SPACING + spacingIncrease;
@@ -684,7 +672,7 @@
 
             bananaPool.forEach((b,i)=>{if(b.y-scrollY>GAME_HEIGHT+40)bananaPool.splice(i,1);})
             
-            if(monkey.y - scrollY > safeArea.y + safeArea.h){ // Game over when monkey leaves visible area
+            if(monkey.y-scrollY>GAME_HEIGHT){
                 if(gameState==='playing'){
                     const scoreResult = updateScores(score);
                     isNewHighScore = scoreResult.isNewHighScore;
@@ -733,26 +721,23 @@
         }
 
         function drawLogo() {
-            // **MODIFICATION: Center logo within the visible safe area**
-            const centerX = safeArea.x + safeArea.w / 2;
-            const centerY = safeArea.y + safeArea.h / 2;
+            const baseY = 280; // Adjusted for better centering
             const lineSpacing = 120;
-            const baseY = centerY - lineSpacing; 
 
             const size1 = 110;
             const grad1 = ctx.createLinearGradient(0, baseY - size1/2, 0, baseY + size1/2);
             grad1.addColorStop(0, '#f9f954'); grad1.addColorStop(1, '#e3c600');
-            drawAnimatedBeveledLine('Go! Go!', centerX, baseY, size1, grad1, 4);
+            drawAnimatedBeveledLine('Go! Go!', GAME_WIDTH / 2, baseY, size1, grad1, 4);
 
             const size2 = 100;
             const y2 = baseY + lineSpacing;
             const grad2 = ctx.createLinearGradient(0, y2 - size2/2, 0, y2 + size2/2);
             grad2.addColorStop(0, CHARACTERS.orange.main);
             grad2.addColorStop(1, CHARACTERS.orange.dark);
-            drawAnimatedBeveledLine('Monkey,', centerX, y2, size2, grad2, 3);
+            drawAnimatedBeveledLine('Monkey,', GAME_WIDTH / 2, y2, size2, grad2, 3);
             
             const y3 = baseY + lineSpacing * 2;
-            drawAnimatedBeveledLine('Go!', centerX, y3, size1, grad1, 4);
+            drawAnimatedBeveledLine('Go!', GAME_WIDTH / 2, y3, size1, grad1, 4);
         }
         
         function drawMenuButton(text, x, y, w, h) {
@@ -793,21 +778,20 @@
             ctx.fillStyle = 'white';
             ctx.shadowColor = 'black'; ctx.shadowBlur = 8;
             const instructionText = isTouchDevice ? "Tap Left/Right to Move!" : "Use A/D or Arrow Keys to Move!";
-            // **MODIFICATION: Draw inside safe area**
-            ctx.fillText(instructionText, safeArea.x + safeArea.w/2, safeArea.y + safeArea.h * 0.25);
+            ctx.fillText(instructionText, GAME_WIDTH/2, GAME_HEIGHT * 0.25);
             ctx.restore();
         }
         
         function drawCharacterSelectScreen() {
             skySystem.draw(0.25);
             
-            const centerX = safeArea.x + safeArea.w / 2;
-            const titleY = safeArea.y + safeArea.h * 0.15;
+            // Draw wobbly title
+            const titleY = GAME_HEIGHT * 0.15;
             const titleSize = 48;
             const titleGrad = ctx.createLinearGradient(0, titleY - titleSize/2, 0, titleY + titleSize/2);
             titleGrad.addColorStop(0, '#FFFFFF'); 
             titleGrad.addColorStop(1, '#DDDDDD');
-            drawAnimatedBeveledLine('Choose Your Monkey!', centerX, titleY, titleSize, titleGrad, 2);
+            drawAnimatedBeveledLine('Choose Your Monkey!', GAME_WIDTH / 2, titleY, titleSize, titleGrad, 2);
             
             characterSelectButtons = [];
             const cols = 3;
@@ -816,9 +800,8 @@
             const boxSize = 160, padding = 30;
             const totalWidth = cols * boxSize + (cols-1) * padding;
             const totalHeight = rows * boxSize + (rows-1) * padding;
-            // **MODIFICATION: Center grid within the visible safe area**
-            const startX = safeArea.x + (safeArea.w - totalWidth) / 2;
-            const startY = safeArea.y + (safeArea.h - totalHeight) / 2;
+            const startX = GAME_WIDTH/2 - totalWidth/2;
+            const startY = GAME_HEIGHT/2 - totalHeight/2;
 
             unlockedCharacters.forEach((key, i) => {
                 const char = CHARACTERS[key];
@@ -828,10 +811,12 @@
                 const y = startY + row * (boxSize + padding);
 
                 ctx.save();
+                // Translate to center of box to rotate around it
                 ctx.translate(x + boxSize / 2, y + boxSize / 2);
-                const wobbleAngle = (Math.sin(i * 0.5 + gameTime * 3)) * 0.035;
+                const wobbleAngle = (Math.sin(i * 0.5 + gameTime * 3)) * 0.035; // Apply a gentle wobble
                 ctx.rotate(wobbleAngle);
 
+                // Draw everything relative to the new (0,0) center
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 3;
@@ -839,14 +824,17 @@
                 ctx.roundRect(-boxSize/2, -boxSize/2, boxSize, boxSize, 25);
                 ctx.fill(); ctx.stroke();
                 
+                // Draw monkey head centered
                 drawMonkeyHead(0, -15, 100, key);
                 
+                // Draw text centered
                 ctx.font = 'bold 26px sans-serif';
                 ctx.fillStyle = 'white';
                 ctx.textAlign = 'center';
                 ctx.fillText(char.name, 0, boxSize/2 - 25);
                 ctx.restore();
                 
+                // The button hitbox is unaffected by the visual wobble
                 characterSelectButtons.push({ x, y, w: boxSize, h: boxSize, key });
             });
         }
@@ -858,12 +846,10 @@
             if (gameState === 'start') {
                 skySystem.draw(0.25);
                 drawLogo();
-                const btnW = 300, btnH = 70;
-                // **MODIFICATION: Center button in safe area**
-                const btnX = safeArea.x + (safeArea.w - btnW) / 2;
-                const btnY = safeArea.y + safeArea.h * 0.5 + 150; 
-                drawMenuButton("Start Game", btnX, btnY, btnW, btnH);
-                menuButtons.start = {x:btnX, y:btnY, w:btnW, h:btnH};
+                const btnW = 300, btnH = 70, btnY = 625; // Adjusted for better centering
+                const startX = GAME_WIDTH/2 - btnW/2;
+                drawMenuButton("Start Game", startX, btnY, btnW, btnH);
+                menuButtons.start = {x:startX, y:btnY, w:btnW, h:btnH};
                 drawMuteButton();
             } else if (gameState === 'characterSelect') {
                 drawCharacterSelectScreen();
@@ -886,45 +872,48 @@
                 
                 drawInGameInstructions();
                 
-                // **MODIFICATION: Position score in top-left of safe area**
                 ctx.fillStyle='white';ctx.font=`bold 40px sans-serif`;ctx.textAlign='left';ctx.shadowColor='black';ctx.shadowBlur=5;
-                ctx.fillText(`Score: ${Math.floor(score)}`, safeArea.x + 20, safeArea.y + 55);
+                ctx.fillText(`Score: ${Math.floor(score)}`, 20, 55);
                 ctx.shadowBlur=0;
 
                 if(gameState!=='playing'){
                     ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,GAME_WIDTH,GAME_HEIGHT);
                     if(gameState==='gameOver'&&isNewHighScore)drawBananaConfetti();
-                    
-                    const centerX = safeArea.x + safeArea.w / 2;
-                    let textY = safeArea.y + safeArea.h * 0.15;
-
                     ctx.fillStyle='white'; ctx.textAlign='center';
-                    ctx.font=`bold 72px sans-serif`; ctx.fillText('Game Over', centerX, textY);
-                    textY += 100;
-
-                    ctx.font=`40px sans-serif`;
-                    const finalScoreText = 'Final Score: ' + Math.floor(score);
-                    ctx.fillStyle = 'white';
-                    if (isNewHighScore) {
-                        const highScores = getHighScores(); const rank = highScores.indexOf(Math.floor(score));
-                        if (rank > -1) ctx.fillStyle = MEDAL_COLORS[rank] || '#FFD700';
-                        else ctx.fillStyle = '#66FF66';
-                    }
-                    ctx.fillText(finalScoreText, centerX, textY);
-                    textY += 60;
+                    ctx.font=`bold 72px sans-serif`; ctx.fillText('Game Over', GAME_WIDTH/2, GAME_HEIGHT*0.15);
                     
-                    if(isNewHighScore){ctx.font=`bold 32px sans-serif`;ctx.fillStyle='#66FF66';ctx.fillText('New High Score!', centerX, textY); textY += 45;}
+                    ctx.font=`40px sans-serif`;
+                    const finalScoreText = 'Final Score: '; const scoreNumber = Math.floor(score);
+                    const textMetrics = ctx.measureText(finalScoreText); const textWidth = textMetrics.width;
+                    const totalWidth = textWidth + ctx.measureText(scoreNumber).width;
+                    const startX = GAME_WIDTH/2 - totalWidth/2;
+
+                    ctx.fillStyle = 'white'; ctx.textAlign = 'left';
+                    ctx.fillText(finalScoreText, startX, GAME_HEIGHT*0.25);
+
+                    let scoreColor = '#FFFFFF';
+                    if (isNewHighScore) {
+                        const highScores = getHighScores(); const rank = highScores.indexOf(scoreNumber);
+                        if (rank > -1) scoreColor = MEDAL_COLORS[rank] || '#FFD700';
+                        else scoreColor = '#66FF66';
+                    }
+                    ctx.fillStyle = scoreColor;
+                    ctx.fillText(scoreNumber, startX + textWidth, GAME_HEIGHT*0.25);
+                    ctx.textAlign = 'center'; 
+
+                    let textY = GAME_HEIGHT*0.32;
+                    if(isNewHighScore){ctx.font=`bold 32px sans-serif`;ctx.fillStyle='#66FF66';ctx.fillText('New High Score!',GAME_WIDTH/2, textY); textY += 45;}
                     if(newlyUnlockedCharacter){
                         ctx.font=`bold 32px sans-serif`; ctx.fillStyle='#00FFFF';
-                        ctx.fillText(`You unlocked the ${newlyUnlockedCharacter.name} monkey!`, centerX, textY);
+                        ctx.fillText(`You unlocked the ${newlyUnlockedCharacter.name} monkey!`, GAME_WIDTH/2, textY);
                     }
 
-                    drawHighScores(centerX, safeArea.y + safeArea.h * 0.42);
+                    drawHighScores(GAME_WIDTH/2, GAME_HEIGHT*0.42);
                     
                     ctx.font=`bold 30px sans-serif`;
                     ctx.fillStyle='white';
                     const playAgainText = isTouchDevice ? 'Tap anywhere to Continue' : 'Click or Press Space to Continue';
-                    ctx.fillText(playAgainText, centerX, safeArea.y + safeArea.h - 80);
+                    ctx.fillText(playAgainText, GAME_WIDTH/2, GAME_HEIGHT - 80);
                     drawMuteButton();
                 }
             }
