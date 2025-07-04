@@ -43,9 +43,9 @@
         const jumpSound = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/cartoon-jump-6462.mp3');
         const sparkleSound = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/sparkle-355937.mp3');
         bgMusic.loop = true;
-        bgMusic.volume = 0.005; // A pleasant background volume
-        sparkleSound.volume = 0.005; // Slightly louder than bg music
-        jumpSound.volume = 0.005;
+        bgMusic.volume = 0.0035; // A pleasant background volume
+        sparkleSound.volume = 0.004; // Slightly louder than bg music
+        jumpSound.volume = 0.004;
         let musicStarted = false;
         let isMuted = false;
 
@@ -55,7 +55,7 @@
         const VINE_HORIZONTAL_REACH = 220, VINE_FALL_SPEED = 600;
         const BANANA_SPAWN_CHANCE = 0.5, BANANA_POINTS = 750;
         const DAY_NIGHT_DISTANCE = 8600;
-        const DIFFICULTY_SCORE_INTERVAL = 7500;
+        const DIFFICULTY_SCORE_INTERVAL = 10000;
         const VINE_MIN_HORIZONTAL_OFFSET = 80;
         const HIGH_SCORE_KEY = 'gogomonkeygo_highscores';
         const UNLOCK_KEY = 'gogomonkeygo_highestscore';
@@ -66,14 +66,20 @@
         
         const CHARACTERS = {
             'orange':  { name: 'Go!Go!',   unlock: 0,      main: '#f96714', dark: '#ef5a06', face: '#ffdab9', pupils: '#000000' },
-            'brown':   { name: 'CoCo',    unlock: 5000,   main: '#623412', dark: '#401801', face: '#d1bba1', pupils: '#000000' },
-            'gray':    { name: 'Silver',  unlock: 10000,  main: '#9e9e9e', dark: '#616161', face: '#e0e0e0', pupils: '#000000' },
-            'black':   { name: 'Shadow',  unlock: 15000,  main: '#424242', dark: '#212121', face: '#757575', pupils: '#000000' },
-            'pink':    { name: 'Rose',    unlock: 20000,  main: '#f48fb1', dark: '#c2185b', face: '#fce4ec', pupils: '#e91e63' },
-            'white':   { name: 'Arctic',  unlock: 35000,  main: '#fafafa', dark: '#bdbdbd', face: '#ffffff', pupils: '#2196f3', sparkles: true },
-            'gold':    { name: 'Golden',  unlock: 50000,  main: '#ffeb3b', dark: '#f57f17', face: '#fff9c4', pupils: '#000000', sparkles: true, shine: true },
+            'peach': { name: 'Peachy',  unlock: 10000,   main: '#ffb74d', dark: '#f57c00', face: '#fff3e0', pupils: '#000000' },
+            'brown':   { name: 'CoCo',    unlock: 15000,   main: '#623412', dark: '#401801', face: '#d1bba1', pupils: '#000000' },
+            'red':    { name: 'Ruby',   unlock: 17500,   main: '#d32f2f', dark: '#b71c1c', face: '#ffcdd2', pupils: '#000000' },
+            'yellow':  { name: 'Sunny',   unlock: 20000,  main: '#dbc001', dark: '#fbc02d', face: '#fff9c4', pupils: '#000000' },
+            'pink':    { name: 'Rose',    unlock: 25000,  main: '#f48fb1', dark: '#c2185b', face: '#fce4ec', pupils: '#e91e63' },
+            'blue':    { name: 'Azul',    unlock: 30000,  main: '#42a5f5', dark: '#1565c0', face: '#bbdefb', pupils: '#0277bd' },
+            'purple':  { name: 'Violet',  unlock: 35000,  main: '#971597', dark: '#6a1b9a', face: '#f6bbf6', pupils: '#320732' },
+            'gray':    { name: 'Silver',  unlock: 40000,  main: '#9e9e9e', dark: '#616161', face: '#e0e0e0', pupils: '#000000', sparkles: true },
+            'black':   { name: 'Shadow',  unlock: 45000,  main: '#424242', dark: '#212121', face: '#757575', pupils: '#000000', sparkles: true },
+            'white':   { name: 'Arctic',  unlock: 50000,  main: '#bfc7d6', dark: '#8a99b4', face: '#dadee7', pupils: '#596b8b', sparkles: true},
+            'green':   { name: 'Emerald', unlock: 55000,  main: '#028f1e', dark: '#027919', face: '#c8e6c9', pupils: '#01400e', sparkles: true, shine: true },
+            'gold':    { name: 'Goldie',  unlock: 60000,  main: '#dcba00', dark: '#7a6700', face: '#fff9c4', pupils: '#524500', sparkles: true, shine: true },
             'diamond': { name: 'Diamond', unlock: 75000,  main: '#b9f2ff', dark: '#81d4fa', face: '#e1f5fe', pupils: '#0277bd', sparkles: true, shine: true },
-            'rainbow': { name: 'Rainbow', unlock: 100000, face: '#ffffff', pupils: '#000000', isRainbow: true }
+            'rainbow': { name: 'Rainbow', unlock: 100000, face: '#ffffff', pupils: '#000000', isRainbow: true, sparkles: true, shine: true },
         };
         let selectedCharacterKey = 'orange';
         let unlockedCharacters = ['orange'];
@@ -133,15 +139,25 @@
             const gameAspectRatio = GAME_WIDTH / GAME_HEIGHT;
             const windowAspectRatio = windowWidth / windowHeight;
 
-            if (windowAspectRatio > gameAspectRatio) {
+            // **MODIFICATION START**
+            // The old logic tried to fit the game perfectly, causing black bars.
+            // This new logic ensures the game's height fills the screen, which is
+            // better for a vertical mobile game. It will "cover" the screen.
+            if (windowAspectRatio < gameAspectRatio) {
+                // Window is TALLER than the game's aspect ratio (e.g., most phones)
+                // We fit to the width, which will make the canvas taller than the screen.
+                // This is generally not the desired outcome for this game. Let's force height-based scaling.
                 scale = windowHeight / GAME_HEIGHT;
                 canvas.style.height = `${windowHeight}px`;
                 canvas.style.width = `${GAME_WIDTH * scale}px`;
             } else {
-                scale = windowWidth / GAME_WIDTH;
-                canvas.style.width = `${windowWidth}px`;
-                canvas.style.height = `${GAME_HEIGHT * scale}px`;
+                // Window is WIDER than the game's aspect ratio (e.g., desktop, tablet landscape)
+                // We fit to the height.
+                scale = windowHeight / GAME_HEIGHT;
+                canvas.style.height = `${windowHeight}px`;
+                canvas.style.width = `${GAME_WIDTH * scale}px`;
             }
+            // **MODIFICATION END**
             
             canvas.width = GAME_WIDTH;
             canvas.height = GAME_HEIGHT;
@@ -404,11 +420,12 @@
             
             if (char.shine) {
                 const shineGrad = ctx.createLinearGradient(-bodyW/2, -bodyH/2, bodyW/2, bodyH/2);
-                const shinePos = (gameTime*2) % 2 - 0.5;
+                const shinePos = (Math.sin(gameTime * 4) + 1) / 2; // <-- THE CORRECTED LINE
                 const shineColor = charKey === 'diamond' ? '#e3f2fd' : 'white';
-                shineGrad.addColorStop(Math.max(0, shinePos - 0.2), mainColor);
-                shineGrad.addColorStop(Math.max(0, shinePos), shineColor);
-                shineGrad.addColorStop(Math.max(0, shinePos + 0.2), mainColor);
+                const shineWidth = 0.1; // Controls how wide the shine band is
+                shineGrad.addColorStop(Math.max(0, shinePos - shineWidth), mainColor);
+                shineGrad.addColorStop(shinePos, shineColor);
+                shineGrad.addColorStop(Math.min(1, shinePos + shineWidth), mainColor);
                 ctx.fillStyle = shineGrad;
             } else {
                 ctx.fillStyle=mainColor;
@@ -539,7 +556,7 @@
             const currentMaxWidth = Math.max(VINE_MIN_WIDTH * 0.7, VINE_MAX_WIDTH - widthReduction);
             const currentMinWidth = Math.max(VINE_MIN_WIDTH * 0.6, VINE_MIN_WIDTH - widthReduction);
             const width = currentMinWidth + Math.random() * (currentMaxWidth - currentMinWidth);
-            const jumpsLeft = Math.max(1, VINE_JUMPS_TO_BREAK - Math.floor(difficulty / 1.5));
+            const jumpsLeft = Math.max(2, VINE_JUMPS_TO_BREAK - Math.floor(difficulty / 2.0));
             let x;
 
             if (prevVine) {
@@ -778,11 +795,14 @@
         
         function drawCharacterSelectScreen() {
             skySystem.draw(0.25);
-            ctx.fillStyle = 'white'; ctx.textAlign = 'center';
-            ctx.font = `bold 48px sans-serif`;
-            ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 10;
-            ctx.fillText('Choose Your Monkey', GAME_WIDTH/2, GAME_HEIGHT * 0.15);
-            ctx.shadowBlur = 0;
+            
+            // Draw wobbly title
+            const titleY = GAME_HEIGHT * 0.15;
+            const titleSize = 48;
+            const titleGrad = ctx.createLinearGradient(0, titleY - titleSize/2, 0, titleY + titleSize/2);
+            titleGrad.addColorStop(0, '#FFFFFF'); 
+            titleGrad.addColorStop(1, '#DDDDDD');
+            drawAnimatedBeveledLine('Choose Your Monkey!', GAME_WIDTH / 2, titleY, titleSize, titleGrad, 2);
             
             characterSelectButtons = [];
             const cols = 3;
@@ -800,20 +820,32 @@
                 const row = Math.floor(i / cols);
                 const x = startX + col * (boxSize + padding);
                 const y = startY + row * (boxSize + padding);
-                
+
+                ctx.save();
+                // Translate to center of box to rotate around it
+                ctx.translate(x + boxSize / 2, y + boxSize / 2);
+                const wobbleAngle = (Math.sin(i * 0.5 + gameTime * 3)) * 0.035; // Apply a gentle wobble
+                ctx.rotate(wobbleAngle);
+
+                // Draw everything relative to the new (0,0) center
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.roundRect(x, y, boxSize, boxSize, 25);
+                ctx.roundRect(-boxSize/2, -boxSize/2, boxSize, boxSize, 25);
                 ctx.fill(); ctx.stroke();
                 
-                drawMonkeyHead(x + boxSize/2, y + boxSize/2 - 15, 100, key);
+                // Draw monkey head centered
+                drawMonkeyHead(0, -15, 100, key);
                 
+                // Draw text centered
                 ctx.font = 'bold 22px sans-serif';
                 ctx.fillStyle = 'white';
-                ctx.fillText(char.name, x + boxSize/2, y + boxSize - 25);
+                ctx.textAlign = 'center';
+                ctx.fillText(char.name, 0, boxSize/2 - 25);
+                ctx.restore();
                 
+                // The button hitbox is unaffected by the visual wobble
                 characterSelectButtons.push({ x, y, w: boxSize, h: boxSize, key });
             });
         }
