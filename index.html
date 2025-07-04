@@ -36,9 +36,9 @@
         const ctx = canvas.getContext('2d');
 
         const BASE_GAME_WIDTH = 800;
-        const BASE_GAME_HEIGHT = 1200;
+        const BASE_BASE_GAME_HEIGHT = 1200;
         let GAME_WIDTH = BASE_GAME_WIDTH;
-        let GAME_HEIGHT = BASE_GAME_HEIGHT;
+        let BASE_GAME_HEIGHT = BASE_BASE_GAME_HEIGHT;
 
         // --- Game Music & Sounds ---
         const bgMusic = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/jungle-jive-intro.mp3');
@@ -142,15 +142,15 @@
 
             if (isTouchDevice) {
                 // --- MOBILE/TABLET: Fill screen logic ---
-                const baseAspectRatio = BASE_GAME_HEIGHT / BASE_GAME_WIDTH;
+                const baseAspectRatio = BASE_BASE_GAME_HEIGHT / BASE_GAME_WIDTH;
                 const screenAspectRatio = windowHeight / windowWidth;
 
                 if (screenAspectRatio > baseAspectRatio) {
                     GAME_WIDTH = BASE_GAME_WIDTH;
-                    GAME_HEIGHT = Math.round(BASE_GAME_WIDTH * screenAspectRatio);
+                    BASE_GAME_HEIGHT = Math.round(BASE_GAME_WIDTH * screenAspectRatio);
                 } else {
-                    GAME_HEIGHT = BASE_GAME_HEIGHT;
-                    GAME_WIDTH = Math.round(BASE_GAME_HEIGHT / screenAspectRatio);
+                    BASE_GAME_HEIGHT = BASE_BASE_GAME_HEIGHT;
+                    GAME_WIDTH = Math.round(BASE_BASE_GAME_HEIGHT / screenAspectRatio);
                 }
                 
                 canvas.style.width = `${windowWidth}px`;
@@ -159,15 +159,15 @@
             } else {
                 // --- DESKTOP: Original letterbox logic ---
                 GAME_WIDTH = BASE_GAME_WIDTH;
-                GAME_HEIGHT = BASE_GAME_HEIGHT;
-                scale = Math.min(windowWidth / GAME_WIDTH, windowHeight / GAME_HEIGHT);
+                BASE_GAME_HEIGHT = BASE_BASE_GAME_HEIGHT;
+                scale = Math.min(windowWidth / GAME_WIDTH, windowHeight / BASE_GAME_HEIGHT);
                 canvas.style.width = `${GAME_WIDTH * scale}px`;
-                canvas.style.height = `${GAME_HEIGHT * scale}px`;
+                canvas.style.height = `${BASE_GAME_HEIGHT * scale}px`;
             }
             
             // Set the internal canvas resolution
             canvas.width = GAME_WIDTH;
-            canvas.height = GAME_HEIGHT;
+            canvas.height = BASE_GAME_HEIGHT;
             
             // Recalculate offsets for mouse/touch coordinates.
             const rect = canvas.getBoundingClientRect();
@@ -297,31 +297,31 @@
             init(isResize = false) {
                 if(isResize && this.stars.length > 0 && !isResize) return;
                 this.stars = []; this.clouds = []; this.shootingStars = [];
-                for(let i=0; i<300; i++) this.stars.push({x:Math.random()*GAME_WIDTH,y:Math.random()*GAME_HEIGHT,z:Math.random()*0.5+0.1,b:Math.random()*0.8+0.2});
+                for(let i=0; i<300; i++) this.stars.push({x:Math.random()*GAME_WIDTH,y:Math.random()*BASE_GAME_HEIGHT,z:Math.random()*0.5+0.1,b:Math.random()*0.8+0.2});
                 for(let i=0; i<20; i++) {
                     const cloudData = this.generateCloudPuffs();
-                    this.clouds.push({x: Math.random()*GAME_WIDTH, y: Math.random()*GAME_HEIGHT, z: Math.random()*0.5+0.2, w: cloudData.baseWidth, puffs: cloudData.puffs});
+                    this.clouds.push({x: Math.random()*GAME_WIDTH, y: Math.random()*BASE_GAME_HEIGHT, z: Math.random()*0.5+0.2, w: cloudData.baseWidth, puffs: cloudData.puffs});
                 }
             },
             update(dt, nightlight) {
                 this.clouds.forEach(c => { c.x += 20 * c.z * dt; if(c.x - c.w > GAME_WIDTH) c.x = -c.w * 2; });
-                if (nightlight > 0.6 && Math.random() < 0.004) { this.shootingStars.push({ x: Math.random() * GAME_WIDTH * 1.2, y: Math.random() * GAME_HEIGHT * 0.4, len: (Math.random() * 200 + 160), speed: (Math.random() * 530 + 660), life: 1.2, angle: Math.PI * 0.35 + Math.random() * 0.1 }); }
+                if (nightlight > 0.6 && Math.random() < 0.004) { this.shootingStars.push({ x: Math.random() * GAME_WIDTH * 1.2, y: Math.random() * BASE_GAME_HEIGHT * 0.4, len: (Math.random() * 200 + 160), speed: (Math.random() * 530 + 660), life: 1.2, angle: Math.PI * 0.35 + Math.random() * 0.1 }); }
                 this.shootingStars.forEach((s, i) => { s.x -= s.speed * dt; s.y += s.speed * Math.tan(s.angle) * dt; s.life -= dt; if (s.life <= 0) this.shootingStars.splice(i, 1); });
             },
             draw(gameClock) {
                 const daylight = 0.5 - Math.cos(gameClock * 2 * Math.PI) * 0.5; const nightlight = 1 - daylight;
                 const topH=205+35*daylight, topS=50+40*daylight, topL=10+55*daylight; const botH=220+20*daylight, botS=50+20*daylight, botL=25+45*daylight;
-                const grad=ctx.createLinearGradient(0,0,0,GAME_HEIGHT); grad.addColorStop(0,`hsl(${topH},${topS}%,${topL}%)`); grad.addColorStop(1,`hsl(${botH},${botS}%,${botL}%)`);
-                ctx.fillStyle=grad; ctx.fillRect(0,0,GAME_WIDTH,GAME_HEIGHT);
+                const grad=ctx.createLinearGradient(0,0,0,BASE_GAME_HEIGHT); grad.addColorStop(0,`hsl(${topH},${topS}%,${topL}%)`); grad.addColorStop(1,`hsl(${botH},${botS}%,${botL}%)`);
+                ctx.fillStyle=grad; ctx.fillRect(0,0,GAME_WIDTH,BASE_GAME_HEIGHT);
                 ctx.globalAlpha = nightlight * 0.9;
-                this.stars.forEach(s=>{ctx.fillStyle=`rgba(255,255,255,${s.b*(0.5+Math.sin(Date.now()*s.z/1000)*0.5)})`;ctx.beginPath();ctx.arc(s.x,(s.y-scrollY*s.z)%GAME_HEIGHT,s.z*2,0,2*Math.PI);ctx.fill();});
+                this.stars.forEach(s=>{ctx.fillStyle=`rgba(255,255,255,${s.b*(0.5+Math.sin(Date.now()*s.z/1000)*0.5)})`;ctx.beginPath();ctx.arc(s.x,(s.y-scrollY*s.z)%BASE_GAME_HEIGHT,s.z*2,0,2*Math.PI);ctx.fill();});
                 this.shootingStars.forEach(s => { const tailX = s.x + s.len; const tailY = s.y - s.len * Math.tan(s.angle); const starGrad = ctx.createLinearGradient(s.x, s.y, tailX, tailY); starGrad.addColorStop(0, `rgba(255, 255, 224, ${s.life})`); starGrad.addColorStop(1, 'rgba(255, 255, 224, 0)'); ctx.strokeStyle = starGrad; ctx.lineWidth = 3.3; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(tailX, tailY); ctx.stroke(); });
                 ctx.globalAlpha = daylight * 0.9;
                 this.clouds.forEach(c => this.drawFluffyCloud(c));
                 ctx.globalAlpha = 1;
             },
             drawFluffyCloud(c) {
-                const parallaxY = (c.y - scrollY * c.z); const screenHeightWithBuffer = GAME_HEIGHT + c.w * 2; const wrappedY = (parallaxY % screenHeightWithBuffer + screenHeightWithBuffer) % screenHeightWithBuffer - c.w;
+                const parallaxY = (c.y - scrollY * c.z); const screenHeightWithBuffer = BASE_GAME_HEIGHT + c.w * 2; const wrappedY = (parallaxY % screenHeightWithBuffer + screenHeightWithBuffer) % screenHeightWithBuffer - c.w;
                 ctx.fillStyle = `rgba(255, 255, 255, ${0.5 * c.z})`; ctx.beginPath();
                 c.puffs.forEach(p => { ctx.moveTo(c.x + p.dx, wrappedY + p.dy); ctx.arc(c.x + p.dx, wrappedY + p.dy, p.r, 0, Math.PI * 2); });
                 ctx.fill();
@@ -538,7 +538,7 @@
             return { isNewHighScore, newUnlock };
         }
         
-        function spawnBananaConfetti(){bananaConfetti.length=0;for(let i=0;i<60;i++)bananaConfetti.push({x:Math.random()*GAME_WIDTH,y:-Math.random()*GAME_HEIGHT,vx:(Math.random()-.5)*73,vy:Math.random()*106+40,a:Math.random()*Math.PI*2,r:(Math.random()-.5)*5,s:(Math.random()*13+13)});}
+        function spawnBananaConfetti(){bananaConfetti.length=0;for(let i=0;i<60;i++)bananaConfetti.push({x:Math.random()*GAME_WIDTH,y:-Math.random()*BASE_GAME_HEIGHT,vx:(Math.random()-.5)*73,vy:Math.random()*106+40,a:Math.random()*Math.PI*2,r:(Math.random()-.5)*5,s:(Math.random()*13+13)});}
         function updateConfetti(dt){const g=146;bananaConfetti.forEach(p=>{p.vy+=g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.r*dt;});}
         function drawBananaConfetti(){bananaConfetti.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.a);ctx.font=`${p.s}px sans-serif`;ctx.textAlign='center';ctx.fillText('🍌',0,0);ctx.restore();});}
         
@@ -604,7 +604,7 @@
         function drawVine(vine) {
             vine.dip*=0.8; const drawY=vine.y-scrollY+vine.dip;
             ctx.save();
-            if (vine.isFalling) { const fadeStart=GAME_HEIGHT*0.9,fadeEnd=GAME_HEIGHT*1.2;if(drawY>fadeStart){ctx.globalAlpha=1-(drawY-fadeStart)/(fadeEnd-fadeStart);} }
+            if (vine.isFalling) { const fadeStart=BASE_GAME_HEIGHT*0.9,fadeEnd=BASE_GAME_HEIGHT*1.2;if(drawY>fadeStart){ctx.globalAlpha=1-(drawY-fadeStart)/(fadeEnd-fadeStart);} }
             ctx.translate(vine.x,drawY);
             const p1={x:0,y:10},p2={x:vine.width,y:10},cp={x:vine.width/2,y:10+vine.dip/2};
             ctx.strokeStyle='#3e2723';ctx.lineWidth=14;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.quadraticCurveTo(cp.x,cp.y,p2.x,p2.y);ctx.stroke();
@@ -643,11 +643,11 @@
         function initializeLevel() {
             ensureMusicIsPlaying();
             scrollY=0;score=0;gameTime=0;gameState='playing';particles.length=0; isNewHighScore=false; newlyUnlockedCharacter=null; bananaConfetti.length=0; monkey.attachedHearts.length = 0;
-            monkey.x=GAME_WIDTH/2-monkey.width/2;monkey.y=GAME_HEIGHT-150;monkey.vx=0;monkey.vy=0;
+            monkey.x=GAME_WIDTH/2-monkey.width/2;monkey.y=BASE_GAME_HEIGHT-150;monkey.vx=0;monkey.vy=0;
             monkey.isScared = false;
             ingameInstructions = { active: true, opacity: 1.0, hasMoved: false };
             vinePool.length=0;bananaPool.length=0;let lastVine=null;
-            for(let i=0;i<VINE_COUNT;i++){const v=createVine(GAME_HEIGHT-100-i*VINE_VERTICAL_SPACING,lastVine,0);vinePool.push(v);lastVine=v;}
+            for(let i=0;i<VINE_COUNT;i++){const v=createVine(BASE_GAME_HEIGHT-100-i*VINE_VERTICAL_SPACING,lastVine,0);vinePool.push(v);lastVine=v;}
             vinePool[0].x=monkey.x+monkey.width/2-vinePool[0].width/2;vinePool[0].y=monkey.y+monkey.height+10;
         }
 
@@ -675,12 +675,12 @@
             if(monkey.vy>0){for(const v of vinePool){if(!v.isFalling&&monkey.x+monkey.width>v.x&&monkey.x<v.x+v.width&&monkey.y+monkey.height+monkey.vy*dt>v.y&&monkey.y+monkey.height<=v.y+20){monkey.y=v.y-monkey.height;monkey.jump();monkey.land();v.dip=15;if(gameTime>VINE_FALL_TRIGGER_TIME){v.jumpsLeft--;if(v.jumpsLeft<=0){v.isFalling=true; for(let i=0;i<5;i++)particles.push({x:v.x+Math.random()*v.width,y:v.y,vx:(Math.random()-0.5)*40,vy:Math.random()*40,l:2,type:'leaf'});}} break;}}}
             for(const b of bananaPool){if(!b.isCollected&&Math.hypot(monkey.x+monkey.width/2-b.x,monkey.y+monkey.height/2-b.y)<50){b.isCollected=true;score+=BANANA_POINTS;monkey.collectBanana();playSound(sparkleSound);for(let i=0;i<15;i++)particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*185,vy:(Math.random()-0.5)*185,l:1,type:'sparkle'});}}
             
-            const scrollThr=GAME_HEIGHT*0.4;if(monkey.y-scrollY<scrollThr){const s=(monkey.y-scrollY)-scrollThr;scrollY+=s;score+=Math.floor(-s);}
+            const scrollThr=BASE_GAME_HEIGHT*0.4;if(monkey.y-scrollY<scrollThr){const s=(monkey.y-scrollY)-scrollThr;scrollY+=s;score+=Math.floor(-s);}
             particles.forEach((p,i)=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.l-=dt;if(p.l<=0)particles.splice(i,1);});
             
             vinePool.forEach((v) => {
                 if (v.isFalling) { v.y += VINE_FALL_SPEED * dt; }
-                if (v.y -scrollY > GAME_HEIGHT + 40) {
+                if (v.y -scrollY > BASE_GAME_HEIGHT + 40) {
                     let highestVine = null; let highestY = Infinity;
                     for (const otherVine of vinePool) { if (otherVine.y < highestY) { highestY = otherVine.y; highestVine = otherVine; } }
                     const difficulty = getDifficultyLevel(score), spacingIncrease = difficulty * 5.3, newSpacing = VINE_VERTICAL_SPACING + spacingIncrease;
@@ -689,9 +689,9 @@
                 }
             });
 
-            bananaPool.forEach((b,i)=>{if(b.y-scrollY>GAME_HEIGHT+40)bananaPool.splice(i,1);})
+            bananaPool.forEach((b,i)=>{if(b.y-scrollY>BASE_GAME_HEIGHT+40)bananaPool.splice(i,1);})
             
-            if(monkey.y-scrollY>GAME_HEIGHT){
+            if(monkey.y-scrollY>BASE_GAME_HEIGHT){
                 if(gameState==='playing'){
                     const scoreResult = updateScores(score);
                     isNewHighScore = scoreResult.isNewHighScore;
@@ -740,7 +740,7 @@
         }
 
         function drawLogo() {
-            const baseY = GAME_HEIGHT * 0.25; // Use percentage of dynamic height
+            const baseY = BASE_GAME_HEIGHT * 0.25; // Use percentage of dynamic height
             const lineSpacing = 120;
 
             const size1 = 110;
@@ -798,7 +798,7 @@
             ctx.fillStyle = 'white';
             ctx.shadowColor = 'black'; ctx.shadowBlur = 8;
             const instructionText = isTouchDevice ? "Tap Left/Right to Move!" : "Use A/D or Arrow Keys to Move!";
-            ctx.fillText(instructionText, GAME_WIDTH/2, GAME_HEIGHT * 0.25);
+            ctx.fillText(instructionText, GAME_WIDTH/2, BASE_GAME_HEIGHT * 0.25);
             ctx.restore();
         }
         
@@ -806,7 +806,7 @@
             skySystem.draw(0.25);
             
             // Draw wobbly title
-            const titleY = GAME_HEIGHT * 0.15;
+            const titleY = BASE_GAME_HEIGHT * 0.15;
             const titleSize = 48;
             const titleGrad = ctx.createLinearGradient(0, titleY - titleSize/2, 0, titleY + titleSize/2);
             titleGrad.addColorStop(0, '#FFFFFF'); 
@@ -821,7 +821,7 @@
             const totalWidth = cols * boxSize + (cols-1) * padding;
             const totalHeight = rows * boxSize + (rows-1) * padding;
             const startX = GAME_WIDTH/2 - totalWidth/2;
-            const startY = GAME_HEIGHT/2 - totalHeight/2;
+            const startY = BASE_GAME_HEIGHT/2 - totalHeight/2;
 
             unlockedCharacters.forEach((key, i) => {
                 const char = CHARACTERS[key];
@@ -867,7 +867,7 @@
                 skySystem.draw(0.25);
                 drawLogo();
                 const btnW = 300, btnH = 70;
-                const btnY = isTouchDevice ? GAME_HEIGHT * 0.55 : 625;
+                const btnY = isTouchDevice ? BASE_GAME_HEIGHT * 0.55 : 625;
                 const startX = GAME_WIDTH/2 - btnW/2;
                 drawMenuButton("Start Game", startX, btnY, btnW, btnH);
                 menuButtons.start = {x:startX, y:btnY, w:btnW, h:btnH};
@@ -898,10 +898,10 @@
                 ctx.shadowBlur=0;
 
                 if(gameState!=='playing'){
-                    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,GAME_WIDTH,GAME_HEIGHT);
+                    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,GAME_WIDTH,BASE_GAME_HEIGHT);
                     if(gameState==='gameOver'&&isNewHighScore)drawBananaConfetti();
                     ctx.fillStyle='white'; ctx.textAlign='center';
-                    ctx.font=`bold 72px sans-serif`; ctx.fillText('Game Over', GAME_WIDTH/2, GAME_HEIGHT*0.15);
+                    ctx.font=`bold 72px sans-serif`; ctx.fillText('Game Over', GAME_WIDTH/2, BASE_GAME_HEIGHT*0.15);
                     
                     ctx.font=`40px sans-serif`;
                     const finalScoreText = 'Final Score: '; const scoreNumber = Math.floor(score);
@@ -910,7 +910,7 @@
                     const startX = GAME_WIDTH/2 - totalWidth/2;
 
                     ctx.fillStyle = 'white'; ctx.textAlign = 'left';
-                    ctx.fillText(finalScoreText, startX, GAME_HEIGHT*0.25);
+                    ctx.fillText(finalScoreText, startX, BASE_GAME_HEIGHT*0.25);
 
                     let scoreColor = '#FFFFFF';
                     if (isNewHighScore) {
@@ -919,22 +919,22 @@
                         else scoreColor = '#66FF66';
                     }
                     ctx.fillStyle = scoreColor;
-                    ctx.fillText(scoreNumber, startX + textWidth, GAME_HEIGHT*0.25);
+                    ctx.fillText(scoreNumber, startX + textWidth, BASE_GAME_HEIGHT*0.25);
                     ctx.textAlign = 'center'; 
 
-                    let textY = GAME_HEIGHT*0.32;
+                    let textY = BASE_GAME_HEIGHT*0.32;
                     if(isNewHighScore){ctx.font=`bold 32px sans-serif`;ctx.fillStyle='#66FF66';ctx.fillText('New High Score!',GAME_WIDTH/2, textY); textY += 45;}
                     if(newlyUnlockedCharacter){
                         ctx.font=`bold 32px sans-serif`; ctx.fillStyle='#00FFFF';
                         ctx.fillText(`You unlocked the ${newlyUnlockedCharacter.name} monkey!`, GAME_WIDTH/2, textY);
                     }
 
-                    drawHighScores(GAME_WIDTH/2, GAME_HEIGHT*0.42);
+                    drawHighScores(GAME_WIDTH/2, BASE_GAME_HEIGHT*0.42);
                     
                     ctx.font=`bold 30px sans-serif`;
                     ctx.fillStyle='white';
                     const playAgainText = isTouchDevice ? 'Tap anywhere to Continue' : 'Click or Press Space to Continue';
-                    ctx.fillText(playAgainText, GAME_WIDTH/2, GAME_HEIGHT - 80);
+                    ctx.fillText(playAgainText, GAME_WIDTH/2, BASE_GAME_HEIGHT - 80);
                     drawMuteButton();
                 }
             }
