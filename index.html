@@ -137,20 +137,18 @@
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
 
-            // **MODIFICATION START**
-            // Replaced the scaling logic with a more robust "contain" method.
-            // This calculates the best scale to fit the game inside the window
-            // without any stretching or distortion, which is the safest approach
-            // for ensuring the game looks correct on all devices.
+            // Calculate the best scale to fit the game within the window, preserving aspect ratio.
             scale = Math.min(windowWidth / GAME_WIDTH, windowHeight / GAME_HEIGHT);
-
+            
+            // Set the canvas display size. The CSS flex properties will center it.
             canvas.style.width = `${GAME_WIDTH * scale}px`;
             canvas.style.height = `${GAME_HEIGHT * scale}px`;
-            // **MODIFICATION END**
             
+            // Set the internal canvas resolution. This never changes.
             canvas.width = GAME_WIDTH;
             canvas.height = GAME_HEIGHT;
-
+            
+            // Recalculate offsets for mouse/touch coordinates.
             const rect = canvas.getBoundingClientRect();
             offsetX = rect.left;
             offsetY = rect.top;
