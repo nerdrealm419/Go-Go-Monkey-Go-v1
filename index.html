@@ -37,8 +37,12 @@
 
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         
-        // --- NEW: Mobile scaling factor for better visibility ---
-        const MOBILE_SCALE_FACTOR = 1.2; // 20% larger on mobile
+        // --- NEW: Special scaling for mobile character select screen to make elements smaller ---
+        // Adjust this value! (e.g., 0.8 for even smaller, 1.0 for original desktop size on mobile)
+        const MOBILE_CHAR_SELECT_SCALE = 0.9; 
+
+        // General mobile scaling for in-game objects
+        const MOBILE_SCALE_FACTOR = 1.1;
         const scaleFactor = isTouchDevice ? MOBILE_SCALE_FACTOR : 1.0;
 
         const BASE_GAME_WIDTH = 800;
@@ -840,9 +844,12 @@
         function drawCharacterSelectScreen() {
             skySystem.draw(0.25);
             
+            // NEW: Decide which scale to use for the UI elements on THIS screen
+            const charSelectScale = isTouchDevice ? MOBILE_CHAR_SELECT_SCALE : 1.0;
+
             // Draw wobbly title
             const titleY = GAME_HEIGHT * 0.15;
-            const titleSize = 48 * scaleFactor;
+            const titleSize = 48 * charSelectScale;
             const titleGrad = ctx.createLinearGradient(0, titleY - titleSize/2, 0, titleY + titleSize/2);
             titleGrad.addColorStop(0, '#FFFFFF'); 
             titleGrad.addColorStop(1, '#DDDDDD');
@@ -852,7 +859,7 @@
             const cols = 3;
             const unlockedCount = unlockedCharacters.length;
             const rows = Math.ceil(unlockedCount / cols);
-            const boxSize = 160 * scaleFactor, padding = 30 * scaleFactor;
+            const boxSize = 160 * charSelectScale, padding = 30 * charSelectScale;
             const totalWidth = cols * boxSize + (cols-1) * padding;
             const totalHeight = rows * boxSize + (rows-1) * padding;
             const startX = GAME_WIDTH/2 - totalWidth/2;
@@ -874,15 +881,15 @@
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.roundRect(-boxSize/2, -boxSize/2, boxSize, boxSize, 25 * scaleFactor);
+                ctx.roundRect(-boxSize/2, -boxSize/2, boxSize, boxSize, 25 * charSelectScale);
                 ctx.fill(); ctx.stroke();
                 
-                drawMonkeyHead(0, -15 * scaleFactor, 100 * scaleFactor, key);
+                drawMonkeyHead(0, -15 * charSelectScale, 100 * charSelectScale, key);
                 
-                ctx.font = `bold ${26 * scaleFactor}px sans-serif`;
+                ctx.font = `bold ${26 * charSelectScale}px sans-serif`;
                 ctx.fillStyle = 'white';
                 ctx.textAlign = 'center';
-                ctx.fillText(char.name, 0, boxSize/2 - (25 * scaleFactor));
+                ctx.fillText(char.name, 0, boxSize/2 - (25 * charSelectScale));
                 ctx.restore();
                 
                 characterSelectButtons.push({ x, y, w: boxSize, h: boxSize, key });
@@ -896,7 +903,10 @@
             if (gameState === 'start') {
                 skySystem.draw(0.25);
                 drawLogo();
-                const btnW = 300 * scaleFactor, btnH = 70 * scaleFactor, btnY = 625;
+                const btnW = 300 * scaleFactor, btnH = 70 * scaleFactor;
+                // NEW: Use a different Y position on mobile vs. desktop
+                // You can adjust '750' to move the button further up or down on mobile.
+                const btnY = isTouchDevice ? 750 : 625; 
                 const startX = GAME_WIDTH/2 - btnW/2;
                 drawMenuButton("Start Game", startX, btnY, btnW, btnH);
                 menuButtons.start = {x:startX, y:btnY, w:btnW, h:btnH};
