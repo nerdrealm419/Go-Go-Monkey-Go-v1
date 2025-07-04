@@ -37,8 +37,8 @@
 
         const BASE_GAME_WIDTH = 800;
         const BASE_GAME_HEIGHT = 1200;
-        let GAME_WIDTH = 800;
-        let GAME_HEIGHT = 1200;
+        let GAME_WIDTH = BASE_GAME_WIDTH;
+        let GAME_HEIGHT = BASE_GAME_HEIGHT;
 
         // --- Game Music & Sounds ---
         const bgMusic = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/jungle-jive-intro.mp3');
@@ -62,7 +62,7 @@
         const HIGH_SCORE_KEY = 'gogomonkeygo_highscores';
         const UNLOCK_KEY = 'gogomonkeygo_highestscore';
         const MUTE_KEY = 'gogomonkeygo_muted';
-        const MUTE_BUTTON_RECT = { x: GAME_WIDTH - 70, y: 15, w: 55, h: 55 };
+        const MUTE_BUTTON_PROPS = { right_offset: 70, y: 15, w: 55, h: 55 };
         const MEDAL_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32', '#00FFFF', '#FF69B4'];
         const MEDAL_EMOJIS = ['🥇', '🥈', '🥉', '🏅', '🏅'];
         
@@ -89,6 +89,7 @@
         let characterSelectButtons = [];
 
         let scale = 1, offsetX = 0, offsetY = 0;
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
         // --- Audio Management ---
         function playSound(sound) {
@@ -139,38 +140,40 @@
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
 
-            const baseAspectRatio = BASE_GAME_HEIGHT / BASE_GAME_WIDTH;
-            const screenAspectRatio = windowHeight / windowWidth;
+            if (isTouchDevice) {
+                // --- MOBILE/TABLET: Fill screen logic ---
+                const baseAspectRatio = BASE_GAME_HEIGHT / BASE_GAME_WIDTH;
+                const screenAspectRatio = windowHeight / windowWidth;
 
-            // This logic ensures the game view expands to fill the screen without stretching,
-            // preserving the minimum gameplay area and extending it outward.
-            if (screenAspectRatio > baseAspectRatio) {
-                // Screen is taller/skinnier: fit width, expand height.
-                GAME_WIDTH = BASE_GAME_WIDTH;
-                GAME_HEIGHT = Math.round(BASE_GAME_WIDTH * screenAspectRatio);
+                if (screenAspectRatio > baseAspectRatio) {
+                    GAME_WIDTH = BASE_GAME_WIDTH;
+                    GAME_HEIGHT = Math.round(BASE_GAME_WIDTH * screenAspectRatio);
+                } else {
+                    GAME_HEIGHT = BASE_GAME_HEIGHT;
+                    GAME_WIDTH = Math.round(BASE_GAME_HEIGHT / screenAspectRatio);
+                }
+                
+                canvas.style.width = `${windowWidth}px`;
+                canvas.style.height = `${windowHeight}px`;
+                scale = windowWidth / GAME_WIDTH;
             } else {
-                // Screen is wider/squatter: fit height, expand width.
+                // --- DESKTOP: Original letterbox logic ---
+                GAME_WIDTH = BASE_GAME_WIDTH;
                 GAME_HEIGHT = BASE_GAME_HEIGHT;
-                GAME_WIDTH = Math.round(BASE_GAME_HEIGHT / screenAspectRatio);
+                scale = Math.min(windowWidth / GAME_WIDTH, windowHeight / GAME_HEIGHT);
+                canvas.style.width = `${GAME_WIDTH * scale}px`;
+                canvas.style.height = `${GAME_HEIGHT * scale}px`;
             }
-
-            // Set the canvas display size to fill the entire window.
-            canvas.style.width = `${windowWidth}px`;
-            canvas.style.height = `${windowHeight}px`;
-
-            // Set the internal canvas resolution to our new calculated dimensions.
+            
+            // Set the internal canvas resolution
             canvas.width = GAME_WIDTH;
             canvas.height = GAME_HEIGHT;
-            
-            // The scale factor is uniform and used for converting screen coordinates to canvas coordinates.
-            scale = windowWidth / GAME_WIDTH;
             
             // Recalculate offsets for mouse/touch coordinates.
             const rect = canvas.getBoundingClientRect();
             offsetX = rect.left;
             offsetY = rect.top;
 
-            // Re-initialize sky system as game dimensions may have changed.
             if (skySystem) skySystem.init(true);
         }
         window.addEventListener('resize', resize);
@@ -184,7 +187,6 @@
 
         let lastTime = 0, gameState = 'start', scrollY = 0, score = 0, gameTime = 0, animationFrameId;
         let isNewHighScore = false;
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         let ingameInstructions = { active: false, opacity: 1.0, hasMoved: false };
         const menuButtons = { start: null };
 
@@ -217,9 +219,8 @@
             
             // Handle mute button clicks first on relevant screens
             if (['start', 'characterSelect', 'gameOver'].includes(gameState)) {
-                // Update Mute button position based on dynamic GAME_WIDTH
-                const muteBtnX = GAME_WIDTH - 70;
-                if (x > muteBtnX && x < muteBtnX + MUTE_BUTTON_RECT.w && y > MUTE_BUTTON_RECT.y && y < MUTE_BUTTON_RECT.y + MUTE_BUTTON_RECT.h) {
+                const muteBtnX = GAME_WIDTH - MUTE_BUTTON_PROPS.right_offset;
+                if (x > muteBtnX && x < muteBtnX + MUTE_BUTTON_PROPS.w && y > MUTE_BUTTON_PROPS.y && y < MUTE_BUTTON_PROPS.y + MUTE_BUTTON_PROPS.h) {
                     toggleMute();
                     return; // Interaction handled
                 }
@@ -294,7 +295,7 @@
                 return { puffs, baseWidth };
             },
             init(isResize = false) {
-                if(isResize && this.stars.length > 0 && !isResize) return; // Prevent re-init unless it's a real resize
+                if(isResize && this.stars.length > 0 && !isResize) return;
                 this.stars = []; this.clouds = []; this.shootingStars = [];
                 for(let i=0; i<300; i++) this.stars.push({x:Math.random()*GAME_WIDTH,y:Math.random()*GAME_HEIGHT,z:Math.random()*0.5+0.1,b:Math.random()*0.8+0.2});
                 for(let i=0; i<20; i++) {
@@ -739,7 +740,7 @@
         }
 
         function drawLogo() {
-            const baseY = GAME_HEIGHT * 0.25;
+            const baseY = GAME_HEIGHT * 0.25; // Use percentage of dynamic height
             const lineSpacing = 120;
 
             const size1 = 110;
@@ -773,18 +774,18 @@
 
         function drawMuteButton() {
             ctx.save();
-            const muteRectX = GAME_WIDTH - 70; // Position dynamically
+            const muteRectX = GAME_WIDTH - MUTE_BUTTON_PROPS.right_offset;
             ctx.globalAlpha = 0.6;
             ctx.fillStyle = '#000';
             ctx.beginPath();
-            ctx.roundRect(muteRectX, MUTE_BUTTON_RECT.y, MUTE_BUTTON_RECT.w, MUTE_BUTTON_RECT.h, 15);
+            ctx.roundRect(muteRectX, MUTE_BUTTON_PROPS.y, MUTE_BUTTON_PROPS.w, MUTE_BUTTON_PROPS.h, 15);
             ctx.fill();
             ctx.globalAlpha = 1.0;
             ctx.font = '40px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const emoji = isMuted ? '🔇' : '🔊';
-            ctx.fillText(emoji, muteRectX + MUTE_BUTTON_RECT.w / 2, MUTE_BUTTON_RECT.y + MUTE_BUTTON_RECT.h / 2 + 2);
+            ctx.fillText(emoji, muteRectX + MUTE_BUTTON_PROPS.w / 2, MUTE_BUTTON_PROPS.y + MUTE_BUTTON_PROPS.h / 2 + 2);
             ctx.restore();
         }
 
@@ -804,6 +805,7 @@
         function drawCharacterSelectScreen() {
             skySystem.draw(0.25);
             
+            // Draw wobbly title
             const titleY = GAME_HEIGHT * 0.15;
             const titleSize = 48;
             const titleGrad = ctx.createLinearGradient(0, titleY - titleSize/2, 0, titleY + titleSize/2);
@@ -829,10 +831,12 @@
                 const y = startY + row * (boxSize + padding);
 
                 ctx.save();
+                // Translate to center of box to rotate around it
                 ctx.translate(x + boxSize / 2, y + boxSize / 2);
-                const wobbleAngle = (Math.sin(i * 0.5 + gameTime * 3)) * 0.035;
+                const wobbleAngle = (Math.sin(i * 0.5 + gameTime * 3)) * 0.035; // Apply a gentle wobble
                 ctx.rotate(wobbleAngle);
 
+                // Draw everything relative to the new (0,0) center
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 3;
@@ -840,14 +844,17 @@
                 ctx.roundRect(-boxSize/2, -boxSize/2, boxSize, boxSize, 25);
                 ctx.fill(); ctx.stroke();
                 
+                // Draw monkey head centered
                 drawMonkeyHead(0, -15, 100, key);
                 
+                // Draw text centered
                 ctx.font = 'bold 26px sans-serif';
                 ctx.fillStyle = 'white';
                 ctx.textAlign = 'center';
                 ctx.fillText(char.name, 0, boxSize/2 - 25);
                 ctx.restore();
                 
+                // The button hitbox is unaffected by the visual wobble
                 characterSelectButtons.push({ x, y, w: boxSize, h: boxSize, key });
             });
         }
@@ -860,7 +867,7 @@
                 skySystem.draw(0.25);
                 drawLogo();
                 const btnW = 300, btnH = 70;
-                const btnY = GAME_HEIGHT * 0.55;
+                const btnY = isTouchDevice ? GAME_HEIGHT * 0.55 : 625;
                 const startX = GAME_WIDTH/2 - btnW/2;
                 drawMenuButton("Start Game", startX, btnY, btnW, btnH);
                 menuButtons.start = {x:startX, y:btnY, w:btnW, h:btnH};
