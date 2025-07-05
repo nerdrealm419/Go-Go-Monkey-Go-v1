@@ -8,6 +8,13 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- END: Meta tags -->
+
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- PWA Theme Color -->
+    <meta name="theme-color" content="#0A1931"/>
+
     <title>Go! Go! Monkey, Go!</title>
     <style>
         body {
@@ -37,11 +44,7 @@
 
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         
-        // --- NEW: Special scaling for mobile character select screen to make elements smaller ---
-        // Adjust this value! (e.g., 0.8 for even smaller, 1.0 for original desktop size on mobile)
         const MOBILE_CHAR_SELECT_SCALE = 0.9; 
-
-        // General mobile scaling for in-game objects
         const MOBILE_SCALE_FACTOR = 1.1;
         const scaleFactor = isTouchDevice ? MOBILE_SCALE_FACTOR : 1.0;
 
@@ -50,19 +53,23 @@
         let GAME_WIDTH = BASE_GAME_WIDTH;
         let GAME_HEIGHT = BASE_GAME_HEIGHT;
 
+        // --- PWA & Add to Home Screen (A2HS) Logic ---
+        let deferredPrompt;
+        let showInstallButton = false;
+        const INSTALL_BUTTON_RECT = { x: 15, y: 15, w: 55, h: 55 };
 
         // --- Game Music & Sounds ---
         const bgMusic = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/jungle-jive-intro.mp3');
         const jumpSound = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/cartoon-jump-6462.mp3');
         const sparkleSound = new Audio('https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/sparkle-355937.mp3');
         bgMusic.loop = true;
-        bgMusic.volume = 0.0035; // A pleasant background volume
-        sparkleSound.volume = 0.004; // Slightly louder than bg music
+        bgMusic.volume = 0.0035; 
+        sparkleSound.volume = 0.004;
         jumpSound.volume = 0.004;
         let musicStarted = false;
         let isMuted = false;
 
-        // --- Constants Tuned for better game feel (with mobile scaling) ---
+        // --- Constants ---
         const MONKEY_ACCELERATION = 750, MONKEY_MAX_SPEED = 330, FRICTION = 0.89, GRAVITY = 1400, JUMP_STRENGTH = 660;
         const VINE_COUNT = 10, VINE_MIN_WIDTH = 140 * scaleFactor, VINE_MAX_WIDTH = 210 * scaleFactor, VINE_VERTICAL_SPACING = 125, VINE_FALL_TRIGGER_TIME = 15, VINE_JUMPS_TO_BREAK = 3;
         const VINE_HORIZONTAL_REACH = 220, VINE_FALL_SPEED = 600;
@@ -140,7 +147,6 @@
             ensureMusicIsPlaying();
         }
 
-        // Unlock audio context on the first click anywhere.
         document.addEventListener('click', () => {
             if (!musicStarted) ensureMusicIsPlaying();
         }, { once: true });
@@ -151,43 +157,29 @@
             const windowHeight = window.innerHeight;
 
             if (isTouchDevice) {
-                // Mobile/Tablet: Fill screen by expanding width, keeping vertical scale consistent.
                 GAME_HEIGHT = BASE_GAME_HEIGHT;
                 GAME_WIDTH = windowWidth / windowHeight * BASE_GAME_HEIGHT;
-                
                 canvas.width = GAME_WIDTH;
                 canvas.height = GAME_HEIGHT;
-                
                 canvas.style.width = '100vw';
                 canvas.style.height = '100vh';
-                
-                // On mobile, the canvas is fullscreen, so offsets are 0.
                 offsetX = 0;
                 offsetY = 0;
-                // Scale is not used for input conversion in the same way.
                 scale = 1;
 
             } else {
-                // Desktop: Maintain aspect ratio with black bars (original behavior).
                 GAME_WIDTH = BASE_GAME_WIDTH;
                 GAME_HEIGHT = BASE_GAME_HEIGHT;
-
                 scale = Math.min(windowWidth / GAME_WIDTH, windowHeight / GAME_HEIGHT);
-                
                 canvas.style.width = `${GAME_WIDTH * scale}px`;
                 canvas.style.height = `${GAME_HEIGHT * scale}px`;
-                
                 canvas.width = GAME_WIDTH;
                 canvas.height = GAME_HEIGHT;
-                
-                // Recalculate offsets for mouse/touch coordinates based on the centered canvas.
                 const rect = canvas.getBoundingClientRect();
                 offsetX = rect.left;
                 offsetY = rect.top;
             }
-            // Update mute button position which depends on GAME_WIDTH
             MUTE_BUTTON_RECT.x = GAME_WIDTH - 70;
-            
             if (skySystem) skySystem.init(true);
         }
         window.addEventListener('resize', resize);
@@ -195,13 +187,11 @@
         function screenToCanvasCoords(screenX, screenY) {
             if (isTouchDevice) {
                 const rect = canvas.getBoundingClientRect();
-                // Map screen coordinates to the logical canvas coordinates.
                 return {
                     x: (screenX - rect.left) * (GAME_WIDTH / rect.width),
                     y: (screenY - rect.top) * (GAME_HEIGHT / rect.height)
                 };
             } else {
-                // Original desktop logic.
                 return {
                     x: (screenX - offsetX) / scale,
                     y: (screenY - offsetY) / scale
@@ -241,7 +231,21 @@
         function handleInteraction(screenX, screenY) {
             const { x, y } = screenToCanvasCoords(screenX, screenY);
             
-            // Handle mute button clicks first on relevant screens
+            // START: PWA Install Button Logic
+            if (gameState === 'start' && showInstallButton && x > INSTALL_BUTTON_RECT.x && x < INSTALL_BUTTON_RECT.x + INSTALL_BUTTON_RECT.w && y > INSTALL_BUTTON_RECT.y && y < INSTALL_BUTTON_RECT.y + INSTALL_BUTTON_RECT.h) {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    showInstallButton = false;
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') console.log('User installed the app');
+                        else console.log('User dismissed the install prompt');
+                        deferredPrompt = null;
+                    });
+                }
+                return; // Interaction handled
+            }
+            // END: PWA Install Button Logic
+
             if (['start', 'characterSelect', 'gameOver'].includes(gameState)) {
                 if (x > MUTE_BUTTON_RECT.x && x < MUTE_BUTTON_RECT.x + MUTE_BUTTON_RECT.w && y > MUTE_BUTTON_RECT.y && y < MUTE_BUTTON_RECT.y + MUTE_BUTTON_RECT.h) {
                     toggleMute();
@@ -318,7 +322,6 @@
                 return { puffs, baseWidth };
             },
             init(isResize = false) {
-                // If we are resizing, we need to regenerate stars to fill the new width
                 if(isResize) { this.stars = []; this.clouds = []; }
                 if(this.stars.length === 0) {
                     for(let i=0; i<300; i++) this.stars.push({x:Math.random()*GAME_WIDTH,y:Math.random()*GAME_HEIGHT,z:Math.random()*0.5+0.1,b:Math.random()*0.8+0.2});
@@ -357,13 +360,11 @@
         
         const monkey = {
             x:0,y:0,vx:0,vy:0,
-            width: 40 * scaleFactor, // Scaled
-            height: 40 * scaleFactor, // Scaled
+            width: 40 * scaleFactor, height: 40 * scaleFactor,
             squash:1,onGround:false, headAngle:0,
             leftArmAngle: 0, rightArmAngle: 0, attachedHearts: [], heartEyesTimer: 0,
             isBlinking: false, blinkTimer: 2 + Math.random() * 4, blinkDuration: 0,
             isScared: false,
-
             update(dt) {
                 const move=(keys.ArrowRight||keys.d)-(keys.ArrowLeft||keys.a); this.vx+=move*MONKEY_ACCELERATION*dt;
                 this.vx*=FRICTION; this.x+=this.vx*dt; this.vy+=GRAVITY*dt; this.y+=this.vy*dt;
@@ -419,7 +420,7 @@
         function drawMonkeyHead(x, y, size, charKey) {
             ctx.save();
             ctx.translate(x, y);
-            const baseSize = 40; // The original width of the monkey used for scaling calculations
+            const baseSize = 40;
             ctx.scale(size / baseSize, size / baseSize);
             const char = CHARACTERS[charKey];
             
@@ -461,7 +462,7 @@
                 const shineGrad = ctx.createLinearGradient(-bodyW/2, -bodyH/2, bodyW/2, bodyH/2);
                 const shinePos = (Math.sin(gameTime * 4) + 1) / 2;
                 const shineColor = charKey === 'diamond' ? '#e3f2fd' : 'white';
-                const shineWidth = 0.1; // Controls how wide the shine band is
+                const shineWidth = 0.1; 
                 shineGrad.addColorStop(Math.max(0, shinePos - shineWidth), mainColor);
                 shineGrad.addColorStop(shinePos, shineColor);
                 shineGrad.addColorStop(Math.min(1, shinePos + shineWidth), mainColor);
@@ -472,7 +473,6 @@
             ctx.beginPath(); ctx.roundRect(-bodyW/2,-bodyH/2,bodyW,bodyH,12 * (state.width/40)); ctx.fill();
 
             ctx.save(); ctx.translate(0,-bodyH/2 - 12*state.squash * (state.height/40)); ctx.rotate(state.headAngle);
-            // Scale the head parts based on the monkey's current scale
             const headScale = state.width / 40;
             ctx.scale(headScale, headScale);
             
@@ -597,7 +597,7 @@
 
         function createVine(y, prevVine, currentScore = 0) {
             const difficulty = getDifficultyLevel(currentScore);
-            const widthReduction = difficulty * 9.3 * scaleFactor; // Scale reduction
+            const widthReduction = difficulty * 9.3 * scaleFactor; 
             const currentMaxWidth = Math.max(VINE_MIN_WIDTH * 0.7, VINE_MAX_WIDTH - widthReduction);
             const currentMinWidth = Math.max(VINE_MIN_WIDTH * 0.6, VINE_MIN_WIDTH - widthReduction);
             const width = currentMinWidth + Math.random() * (currentMaxWidth - currentMinWidth);
@@ -780,21 +780,18 @@
         }
 
         function drawLogo() {
-            const baseY = 280; // Adjusted for better centering
+            const baseY = 280;
             const lineSpacing = 120 * scaleFactor;
-
             const size1 = 110 * scaleFactor;
             const grad1 = ctx.createLinearGradient(0, baseY - size1/2, 0, baseY + size1/2);
             grad1.addColorStop(0, '#f9f954'); grad1.addColorStop(1, '#e3c600');
             drawAnimatedBeveledLine('Go! Go!', GAME_WIDTH / 2, baseY, size1, grad1, 4);
-
             const size2 = 100 * scaleFactor;
             const y2 = baseY + lineSpacing;
             const grad2 = ctx.createLinearGradient(0, y2 - size2/2, 0, y2 + size2/2);
             grad2.addColorStop(0, CHARACTERS.orange.main);
             grad2.addColorStop(1, CHARACTERS.orange.dark);
             drawAnimatedBeveledLine('Monkey,', GAME_WIDTH / 2, y2, size2, grad2, 3);
-            
             const y3 = baseY + lineSpacing * 2;
             drawAnimatedBeveledLine('Go!', GAME_WIDTH / 2, y3, size1, grad1, 4);
         }
@@ -828,6 +825,24 @@
             ctx.restore();
         }
 
+        function drawInstallButton() {
+            if (!showInstallButton) return;
+            ctx.save();
+            ctx.globalAlpha = 0.8;
+            ctx.fillStyle = '#4CAF50';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(INSTALL_BUTTON_RECT.x, INSTALL_BUTTON_RECT.y, INSTALL_BUTTON_RECT.w, INSTALL_BUTTON_RECT.h, 15);
+            ctx.fill(); ctx.stroke();
+            ctx.globalAlpha = 1.0;
+            ctx.font = `${35 * scaleFactor}px sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillStyle = 'white'; ctx.shadowColor = 'black'; ctx.shadowBlur = 4;
+            ctx.fillText('📲', INSTALL_BUTTON_RECT.x + INSTALL_BUTTON_RECT.w / 2, INSTALL_BUTTON_RECT.y + INSTALL_BUTTON_RECT.h / 2 + 2);
+            ctx.restore();
+        }
+
         function drawInGameInstructions() {
             if (!ingameInstructions.active) return;
             ctx.save();
@@ -843,16 +858,11 @@
         
         function drawCharacterSelectScreen() {
             skySystem.draw(0.25);
-            
-            // NEW: Decide which scale to use for the UI elements on THIS screen
             const charSelectScale = isTouchDevice ? MOBILE_CHAR_SELECT_SCALE : 1.0;
-
-            // Draw wobbly title
             const titleY = GAME_HEIGHT * 0.15;
             const titleSize = 48 * charSelectScale;
             const titleGrad = ctx.createLinearGradient(0, titleY - titleSize/2, 0, titleY + titleSize/2);
-            titleGrad.addColorStop(0, '#FFFFFF'); 
-            titleGrad.addColorStop(1, '#DDDDDD');
+            titleGrad.addColorStop(0, '#FFFFFF'); titleGrad.addColorStop(1, '#DDDDDD');
             drawAnimatedBeveledLine('Choose Your Monkey!', GAME_WIDTH / 2, titleY, titleSize, titleGrad, 2);
             
             characterSelectButtons = [];
@@ -904,13 +914,12 @@
                 skySystem.draw(0.25);
                 drawLogo();
                 const btnW = 300 * scaleFactor, btnH = 70 * scaleFactor;
-                // NEW: Use a different Y position on mobile vs. desktop
-                // You can adjust '750' to move the button further up or down on mobile.
                 const btnY = isTouchDevice ? 750 : 625; 
                 const startX = GAME_WIDTH/2 - btnW/2;
                 drawMenuButton("Start Game", startX, btnY, btnW, btnH);
                 menuButtons.start = {x:startX, y:btnY, w:btnW, h:btnH};
                 drawMuteButton();
+                drawInstallButton(); // Draw the install button
             } else if (gameState === 'characterSelect') {
                 drawCharacterSelectScreen();
                 drawMuteButton();
@@ -991,6 +1000,27 @@
         loadMuteState();
         checkUnlocks();
         init();
+
+        // --- PWA REGISTRATION AND SETUP ---
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            if (isTouchDevice && !isStandalone) {
+                showInstallButton = true;
+            }
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }).catch(err => {
+                    console.error('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
     });
     </script>
 </body>
