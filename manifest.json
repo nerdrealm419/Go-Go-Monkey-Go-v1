@@ -2,7 +2,7 @@
   "name": "Go! Go! Monkey, Go!",
   "short_name": "GoGoMonkey",
   "description": "An endless jumper game featuring a cheerful monkey! Climb as high as you can by jumping from vine to vine.",
-  "start_url": "./Go!Go!Monkey,Go!.html",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#0A1931",
   "theme_color": "#0A1931",
