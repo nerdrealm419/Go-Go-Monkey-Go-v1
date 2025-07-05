@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- END: Meta tags -->
 
-    <!-- PWA Manifest Link -->
+    <!-- PWA Manifest Link (CORRECTED PATH) -->
     <link rel="manifest" href="manifest.json">
     
     <!-- PWA Theme Color -->
@@ -1001,7 +1001,7 @@
         checkUnlocks();
         init();
 
-        // --- PWA REGISTRATION AND SETUP ---
+        // --- PWA REGISTRATION AND SETUP (CORRECTED) ---
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
@@ -1013,7 +1013,8 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(registration => {
+                // The registration path is now simpler and we explicitly define the scope.
+                navigator.serviceWorker.register('sw.js', { scope: '.' }).then(registration => {
                     console.log('ServiceWorker registration successful with scope: ', registration.scope);
                 }).catch(err => {
                     console.error('ServiceWorker registration failed: ', err);
