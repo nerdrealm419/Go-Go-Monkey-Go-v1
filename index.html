@@ -1203,7 +1203,7 @@
             if (hasPointBoost && hasSpeedBoost) {
                 const points = SPECIAL_BANANA_POINTS[selectedCharacterKey];
                 const speedPercent = Math.round((char.speedMultiplier - 1) * 100);
-                noticeText = `${char.name} gets ${points}pts/banana & a ${speedPercent}% speed boost!`;
+                noticeText = `${char.name} gets ${points}points per banana & a ${speedPercent}% speed boost!`;
             } else if (hasPointBoost) {
                 const points = SPECIAL_BANANA_POINTS[selectedCharacterKey];
                 noticeText = `${char.name} gets ${points} points per banana!`;
@@ -1253,7 +1253,7 @@
                     sprintBananaCooldownTimer -= dt;
                 }
                 if (ingameInstructions.active && ingameInstructions.hasMoved) {
-                    ingameInstructions.opacity -= 2.0 * dt;
+                    ingameInstructions.opacity -= 0.25 * dt;
                     if (ingameInstructions.opacity <= 0) ingameInstructions.active = false;
                 }
                 if (specialAbilityNotice.active) {
@@ -1437,7 +1437,7 @@
             if (!ingameInstructions.active) return;
             ctx.save(); ctx.globalAlpha = ingameInstructions.opacity; ctx.textAlign = 'center';
             ctx.font = `bold ${32 * scaleFactor}px sans-serif`; ctx.fillStyle = 'white'; ctx.shadowColor = 'black'; ctx.shadowBlur = 8;
-            const instructionText = isTouchDevice ? "Tap Left/Right to Move!" : "Use A/D or Arrow Keys to Move!";
+            const instructionText = isTouchDevice ? "Tap & Hold Left/Right Side of Screen to Move!" : "Use A/D or Arrow Keys to Move!";
             ctx.fillText(instructionText, GAME_WIDTH/2, GAME_HEIGHT * 0.25);
             ctx.restore();
         }
@@ -1501,7 +1501,7 @@
 
             // 3. Set the maximum darkness of the unlit areas (0.0 to 1.0).
             // 1.0 is solid black. 0.85 is a good "toned-down" value.
-            const maxDarkness = 0.95; // <<< ADJUST THIS VALUE
+            const maxDarkness = isTouchDevice ? 0.80 : 0.95; // Less dark on mobile
 
             // --- End of adjustments ---
 
@@ -1650,8 +1650,7 @@
             }
             const btnW = 320 * baseScale; const btnH = 65 * baseScale; const btnX = GAME_WIDTH / 2 - btnW / 2;
             const btnY = GAME_HEIGHT - btnH - (isTouchDevice ? 100 : 30) * baseScale;
-            backButtonRect = drawBackButton(btnX, btnY, btnW, btnH, "Back to " + (selectedGameMode === 'sprint' ? 'Distances' : 'Modes'));
-        }
+            backButtonRect = drawBackButton(btnX, btnY, btnW, btnH, selectedGameMode === 'sprint' ? "Back to Distances" : "Return");        }
 
         function drawSprintSelectScreen() {
             skySystem.draw(0.25);
@@ -1748,8 +1747,7 @@
                 if (selectedGameMode === 'sprint') {
                     ctx.fillText(`Time: ${formatTime(gameTime)}`, 20, 55);
                     ctx.textAlign='right';
-                    const heightY = isTouchDevice ? 95 : 55; // Move height text below timer on mobile
-                    ctx.fillText(`Height: ${Math.floor(score)}m / ${sprintTargetHeight}m`, GAME_WIDTH - 20, heightY);
+                    ctx.fillText(`Height: ${Math.floor(score)}m / ${sprintTargetHeight}m`, GAME_WIDTH - 20, 95);
                 } else {
                     ctx.fillText(`Score: ${Math.floor(score)}`, 20, 55);
                 }
