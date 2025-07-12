@@ -1745,9 +1745,18 @@
                 
                 ctx.fillStyle='white';ctx.font=`bold ${40 * scaleFactor}px sans-serif`;ctx.textAlign='left';ctx.shadowColor='black';ctx.shadowBlur=5;
                 if (selectedGameMode === 'sprint') {
-                    ctx.fillText(`Time: ${formatTime(gameTime)}`, 20, 55);
-                    ctx.textAlign='right';
-                    ctx.fillText(`Height: ${Math.floor(score)}m / ${sprintTargetHeight}m`, GAME_WIDTH - 20, 95);
+                    if (isTouchDevice) {
+                        // Mobile/Tablet: Time and Height stacked on the right
+                        ctx.textAlign = 'left';
+                        ctx.fillText(`Time: ${formatTime(gameTime)}`, GAME_WIDTH - 20, 55);
+                        ctx.fillText(`Height: ${Math.floor(score)}m / ${sprintTargetHeight}m`, GAME_WIDTH - 20, 95);
+                    } else {
+                        // Web: Time on left, Height on right, same line
+                        ctx.textAlign = 'left';
+                        ctx.fillText(`Time: ${formatTime(gameTime)}`, 20, 55);
+                        ctx.textAlign = 'right';
+                        ctx.fillText(`Height: ${Math.floor(score)}m / ${sprintTargetHeight}m`, GAME_WIDTH - 20, 55);
+                    }
                 } else {
                     ctx.fillText(`Score: ${Math.floor(score)}`, 20, 55);
                 }
