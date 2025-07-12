@@ -60,10 +60,10 @@
         let isMuted = false;
 
         // --- Constants ---
-        const MONKEY_ACCELERATION = 750, MONKEY_MAX_SPEED = 330, FRICTION = 0.89, GRAVITY = 1400, JUMP_STRENGTH = 660;
-        const BOOSTED_ACCELERATION = 1100, BOOST_DURATION = 5, BOOST_UP_FORCE = 0;
-        const VINE_COUNT = 10, VINE_MIN_WIDTH = 140 * scaleFactor, VINE_MAX_WIDTH = 210 * scaleFactor, VINE_VERTICAL_SPACING = 125, VINE_FALL_TRIGGER_TIME = 15, VINE_JUMPS_TO_BREAK = 3;
-        const VINE_HORIZONTAL_REACH = 200, VINE_FALL_SPEED = 600;
+        const MONKEY_ACCELERATION = 750 * scaleFactor, MONKEY_MAX_SPEED = 330 * scaleFactor, FRICTION = 0.89, GRAVITY = 1400 * scaleFactor, JUMP_STRENGTH = 660 * scaleFactor;
+        const BOOSTED_ACCELERATION = 1100 * scaleFactor, BOOST_DURATION = 5, BOOST_UP_FORCE = 0;
+        const VINE_COUNT = 10, VINE_MIN_WIDTH = 140 * scaleFactor, VINE_MAX_WIDTH = 210 * scaleFactor, VINE_VERTICAL_SPACING = 125 * scaleFactor, VINE_FALL_TRIGGER_TIME = 15, VINE_JUMPS_TO_BREAK = 3;
+        const VINE_HORIZONTAL_REACH = 200, VINE_FALL_SPEED = 600 * scaleFactor;
         const BANANA_SPAWN_CHANCE = 0.45, BANANA_POINTS = 750;
         const SPRINT_BANANA_SPAWN_CHANCE = 0.25;
         const SPRINT_BANANA_COOLDOWN = 15;
@@ -212,8 +212,8 @@
             const windowHeight = window.innerHeight;
 
             if (isTouchDevice) {
-                GAME_HEIGHT = BASE_GAME_HEIGHT;
-                GAME_WIDTH = windowWidth / windowHeight * GAME_HEIGHT;
+                GAME_WIDTH = BASE_GAME_WIDTH;
+                GAME_HEIGHT = windowHeight / windowWidth * GAME_WIDTH;
                 canvas.width = GAME_WIDTH;
                 canvas.height = GAME_HEIGHT;
                 canvas.style.width = '100vw';
