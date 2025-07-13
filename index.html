@@ -366,11 +366,15 @@
                 if (menuButtons.gameOverBack && x > menuButtons.gameOverBack.x && x < menuButtons.gameOverBack.x + menuButtons.gameOverBack.w && y > menuButtons.gameOverBack.y && y < menuButtons.gameOverBack.y + menuButtons.gameOverBack.h) {
                     if (selectedGameMode === 'sprint') {
                         gameState = 'sprintSelect';
-                    } else { 
-                        checkUnlocks();
-                        gameState = 'characterSelect';
+                    } else {
+                        checkUnlocks(); // Refreshes the unlocked character list
+                        if (unlockedCharacters.length > 1) {
+                            gameState = 'characterSelect';
+                        } else {
+                            gameState = 'modeSelect'; // Go back to mode select if only one monkey is available
+                        }
                     }
-                    return; 
+                    return;
                 }
             }
         }
@@ -2004,7 +2008,12 @@
                     if (selectedGameMode === 'sprint') {
                         backBtnText = "Change Distance";
                     } else {
-                        backBtnText = "Change Monkey";
+                        // Check if more than one monkey is available (or will be after this game's unlocks)
+                        if (unlockedCharacters.length > 1 || newlyUnlockedCharacters.length > 0) {
+                            backBtnText = "Change Monkey";
+                        } else {
+                            backBtnText = "Return to Modes";
+                        }
                     }
                     menuButtons.gameOverBack = drawBackButton(btnX, backBtnY, btnW, btnH, backBtnText);
                 
