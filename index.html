@@ -87,7 +87,7 @@
         const SPRINT_BANANA_CONSECUTIVE_LIMIT = 3;
         const SPECIAL_BANANA_POINTS = { 'nanners': 1000, 'peeley': 1250, 'bruiser': 1500, 'checkers': 1000, 'tako': 1250, 'ember': 1500 };
         const DAY_NIGHT_DISTANCE = 8600;
-        const DIFFICULTY_SCORE_INTERVAL = 9000;
+        const DIFFICULTY_SCORE_INTERVAL = 7500;
         const VINE_MIN_HORIZONTAL_OFFSET = 120;
         
         // --- Local Storage Keys & Migration ---
@@ -497,9 +497,9 @@
                     }
                 }
 
-                // Apply 20% speed boost for mobile and tablet
+                // Apply X% speed boost for mobile and tablet devices
                 if (isTouchDevice) {
-                    speedMod *= 1.2; // 20% increase
+                    speedMod *= 1.1; // 10% increase
                 }
 
                 const baseAcceleration = this.boostTimer > 0 ? BOOSTED_ACCELERATION : MONKEY_ACCELERATION;
@@ -619,17 +619,17 @@
                     const isBruiserUnlocked = localStorage.getItem(BRUISER_UNLOCK_KEY) === 'true';
 
                     // This if/else if structure ensures only one character can be unlocked per game, in order.
-                    if (!isNannersUnlocked && consecutiveBananasCollected >= 15) {
+                    if (!isNannersUnlocked && consecutiveBananasCollected >= 25) {
                         localStorage.setItem(NANNERS_UNLOCK_KEY, 'true');
                         if (!newlyUnlockedCharacters.find(c => c.name === CHARACTERS.nanners.name)) {
                             newlyUnlockedCharacters.push(CHARACTERS.nanners);
                         }
-                    } else if (!isPeeleyUnlocked && consecutiveBananasCollected >= 30) {
+                    } else if (!isPeeleyUnlocked && consecutiveBananasCollected >= 50) {
                         localStorage.setItem(PEELEY_UNLOCK_KEY, 'true');
                         if (!newlyUnlockedCharacters.find(c => c.name === CHARACTERS.peeley.name)) {
                             newlyUnlockedCharacters.push(CHARACTERS.peeley);
                         }
-                    } else if (!isBruiserUnlocked && consecutiveBananasCollected >= 50) {
+                    } else if (!isBruiserUnlocked && consecutiveBananasCollected >= 75) {
                         localStorage.setItem(BRUISER_UNLOCK_KEY, 'true');
                         if (!newlyUnlockedCharacters.find(c => c.name === CHARACTERS.bruiser.name)) {
                             newlyUnlockedCharacters.push(CHARACTERS.bruiser);
