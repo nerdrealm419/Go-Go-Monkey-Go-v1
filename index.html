@@ -112,26 +112,26 @@
         
         const CHARACTERS = {
             'orange':  { name: 'Go!Go!',   unlock: 0,      main: '#f96714', dark: '#ef5a06', face: '#ffdab9', pupils: '#000000' },
-            'peach': { name: 'Peachy',  unlock: 20000,   main: '#ffb74d', dark: '#f57c00', face: '#fff3e0', pupils: '#000000' },
-            'brown':   { name: 'CoCo',    unlock: 25000,   main: '#623412', dark: '#401801', face: '#d1bba1', pupils: '#000000' },
-            'red':    { name: 'Ruby',   unlock: 35000,   main: '#d32f2f', dark: '#b71c1c', face: '#ffcdd2', pupils: '#000000' },
-            'yellow':  { name: 'Sunny',   unlock: 40000,  main: '#dbc001', dark: '#fbc02d', face: '#fff9c4', pupils: '#000000' },
-            'pink':    { name: 'Rose',    unlock: 45000,  main: '#f48fb1', dark: '#c2185b', face: '#fce4ec', pupils: '#e91e63' },
-            'blue':    { name: 'Azul',    unlock: 50000,  main: '#42a5f5', dark: '#1565c0', face: '#bbdefb', pupils: '#0277bd' },
-            'purple':  { name: 'Violet',  unlock: 55000,  main: '#971597', dark: '#6a1b9a', face: '#f6bbf6', pupils: '#320732' },
-            'gray':    { name: 'Silver',  unlock: 60000,  main: '#9e9e9e', dark: '#616161', face: '#e0e0e0', pupils: '#000000', sparkles: true },
-            'black':   { name: 'Shadow',  unlock: 70000,  main: '#424242', dark: '#212121', face: '#757575', pupils: '#000000', sparkles: true },
-            'white':   { name: 'Arctic',  unlock: 80000,  main: '#bfc7d6', dark: '#8a99b4', face: '#dadee7', pupils: '#596b8b', sparkles: true},
-            'green':   { name: 'Emerald', unlock: 90000,  main: '#028f1e', dark: '#027919', face: '#c8e6c9', pupils: '#01400e', sparkles: true, shine: true },
-            'gold':    { name: 'Goldie',  unlock: 100000,  main: '#dcba00', dark: '#7a6700', face: '#fff9c4', pupils: '#524500', sparkles: true, shine: true },
-            'diamond': { name: 'Diamond', unlock: 150000,  main: '#b9f2ff', dark: '#81d4fa', face: '#e1f5fe', pupils: '#0277bd', sparkles: true, shine: true },
-            'rainbow': { name: 'Rainbow', unlock: 200000, face: '#ffffff', pupils: '#000000', isRainbow: true, sparkles: true, shine: true },
+            'peach': { name: 'Peachy',  unlock: 30000,   main: '#ffb74d', dark: '#f57c00', face: '#fff3e0', pupils: '#000000' },
+            'brown':   { name: 'CoCo',    unlock: 50000,   main: '#623412', dark: '#401801', face: '#d1bba1', pupils: '#000000' },
+            'red':    { name: 'Ruby',   unlock: 75000,   main: '#d32f2f', dark: '#b71c1c', face: '#ffcdd2', pupils: '#000000' },
+            'yellow':  { name: 'Sunny',   unlock: 100000,  main: '#dbc001', dark: '#fbc02d', face: '#fff9c4', pupils: '#000000' },
+            'pink':    { name: 'Rose',    unlock: 125000,  main: '#f48fb1', dark: '#c2185b', face: '#fce4ec', pupils: '#e91e63' },
+            'blue':    { name: 'Azul',    unlock: 150000,  main: '#42a5f5', dark: '#1565c0', face: '#bbdefb', pupils: '#0277bd' },
+            'purple':  { name: 'Violet',  unlock: 175000,  main: '#971597', dark: '#6a1b9a', face: '#f6bbf6', pupils: '#320732' },
+            'gray':    { name: 'Silver',  unlock: 200000,  main: '#9e9e9e', dark: '#616161', face: '#e0e0e0', pupils: '#000000', sparkles: true },
+            'black':   { name: 'Shadow',  unlock: 250000,  main: '#424242', dark: '#212121', face: '#757575', pupils: '#000000', sparkles: true },
+            'white':   { name: 'Arctic',  unlock: 300000,  main: '#bfc7d6', dark: '#8a99b4', face: '#dadee7', pupils: '#596b8b', sparkles: true},
+            'green':   { name: 'Emerald', unlock: 350000,  main: '#028f1e', dark: '#027919', face: '#c8e6c9', pupils: '#01400e', sparkles: true, shine: true },
+            'gold':    { name: 'Goldie',  unlock: 400000,  main: '#dcba00', dark: '#7a6700', face: '#fff9c4', pupils: '#524500', sparkles: true, shine: true },
+            'diamond': { name: 'Diamond', unlock: 450000,  main: '#b9f2ff', dark: '#81d4fa', face: '#e1f5fe', pupils: '#0277bd', sparkles: true, shine: true },
+            'rainbow': { name: 'Rainbow', unlock: 500000, face: '#ffffff', pupils: '#000000', isRainbow: true, sparkles: true, shine: true },
             'nanners': { name: 'Nanners', unlock: 999999, main: '#FFEB3B', dark: '#FBC02D', face: '#FFFDE7', pupils: '#795548', sparkles: true, isSpecial: true },
             'peeley':  { name: 'Peeley',  unlock: 999999, main: '#fefae7', dark: '#d4ac0d', face: '#fefae7', pupils: '#795548', sparkles: true, isSpecial: true },
             'bruiser': { name: 'Bruiser', unlock: 999999, main: '#FFC107', dark: '#795548', face: '#FFF9C4', pupils: '#795548', sparkles: true, isSpecial: true, sugarSpots: true },
-            'spirit':  { name: 'Spirit',  unlock: 50000,  unlockMode: 'night', solidMain: '#212121', solidDark: '#000000', solidFace: '#424242', pupils: '#FFEB3B', glowingEyes: true, isTransparent: true, sparkles: true, glows: true, glowColor: '#FFEB3B', glowRgb: '255, 235, 59', speedMultiplier: 1.1 },
-            'soul':    { name: 'Soul',    unlock: 100000, unlockMode: 'night', solidMain: '#FFFFFF', solidDark: '#E0E0E0', solidFace: '#FAFAFA', pupils: '#FFEB3B', glowingEyes: true, isTransparent: true, sparkles: true, glows: true, glowColor: '#FFEB3B', glowRgb: '255, 235, 59', speedMultiplier: 1.2, ghostEyes: true },
-            'ghoul':   { name: 'Ghoul',   unlock: 150000, unlockMode: 'night', solidMain: '#38F904', solidDark: '#04BA00', solidFace: '#7CFC00', pupils: '#FFEB3B', glowingEyes: true, glows: true, isTransparent: true, sparkles: true, glowRgb: '56, 249, 4', speedMultiplier: 1.3 },
+            'spirit':  { name: 'Spirit',  unlock: 60000,  unlockMode: 'night', solidMain: '#212121', solidDark: '#000000', solidFace: '#424242', pupils: '#FFEB3B', glowingEyes: true, isTransparent: true, sparkles: true, glows: true, glowColor: '#FFEB3B', glowRgb: '255, 235, 59', speedMultiplier: 1.1 },
+            'soul':    { name: 'Soul',    unlock: 125000, unlockMode: 'night', solidMain: '#FFFFFF', solidDark: '#E0E0E0', solidFace: '#FAFAFA', pupils: '#FFEB3B', glowingEyes: true, isTransparent: true, sparkles: true, glows: true, glowColor: '#FFEB3B', glowRgb: '255, 235, 59', speedMultiplier: 1.2, ghostEyes: true },
+            'ghoul':   { name: 'Ghoul',   unlock: 200000, unlockMode: 'night', solidMain: '#38F904', solidDark: '#04BA00', solidFace: '#7CFC00', pupils: '#FFEB3B', glowingEyes: true, glows: true, isTransparent: true, sparkles: true, glowRgb: '56, 249, 4', speedMultiplier: 1.3 },
             'checkers': { name: 'Checkers', unlock: 60, unlockMode: 'sprint_10000', main: '#BDBDBD', dark: '#616161', face: '#E0E0E0', pupils: '#D32F2F', checkeredTail: true, sparkles: true, speedMultiplier: 1.1 },
             'tako':     { name: 'Peeko', unlock: 120, unlockMode: 'sprint_20000', main: '#FAFAFA', dark: '#4E342E', face: '#4E342E', pupils: '#CC8D35', sparkles: true, speedMultiplier: 1.2 },
             'ember':    { name: 'Rafa', unlock: 180, unlockMode: 'sprint_30000', main: '#BF360C', dark: '#3E2723', face: '#212121', pupils: '#FF6F00', glowingEyes: true, sootTail: true, sparkles: true, speedMultiplier: 1.3 },
@@ -561,6 +561,7 @@
             jump(){this.vy=-JUMP_STRENGTH;this.squash=0.7; playSound(jumpSound); },
             land(){ this.onGround=true; this.squash=1.4; this.isScared = false; },
             collectBanana(){
+                // This first part for sprint mode is unchanged.
                 if (selectedGameMode === 'sprint') {
                     this.boostTimer += BOOST_DURATION;
                     sprintBananasCollectedConsecutively++;
@@ -571,19 +572,32 @@
                 }
                 
                 const char = CHARACTERS[selectedCharacterKey];
+
+                // <<<--- LOGIC FOR SPECIAL BANANA MONKEYS' EYES/EFFECTS ---
+                // This "if" block runs ONLY for Nanners, Peeley, and Bruiser.
+                // It creates the floating bananas around them.
                 if (char.isSpecial) {
                     this.bananaEyesTimer = 0.4; this.attachedBananas.length = 0;
                     for (let i = 0; i < 5; i++) {
                         const angle = Math.random() * Math.PI * 2; const dist = 30 + Math.random() * 20;
                         this.attachedBananas.push({ ox: Math.cos(angle) * dist, oy: Math.sin(angle) * dist - this.height / 2, life: Math.random() * 0.5 + 0.5, maxLife: 1.0, size: (Math.random() * 10 + 10) * scaleFactor, flipped: i % 2 === 0 });
                     }
-                } else {
+                } 
+                
+                // <<<--- HERE IS THE LOGIC FOR THE HEARTS AND EYES FOR ALL OTHER MONKEYS ---
+                // This "else" block runs for EVERYONE ELSE (Go!Go!, Peachy, Ruby, etc.).
+                else { 
+                    // <<<--- THIS LINE ACTIVATES THE HEART EYES
                     this.heartEyesTimer = 0.4; this.attachedHearts.length = 0;
+
+                    // <<<--- THIS LOOP CREATES THE FLOATING HEARTS AROUND THE MONKEY
                     for(let i=0; i<5; i++) {
                         const angle = Math.random() * Math.PI * 2; const dist = 30 + Math.random() * 20;
                         this.attachedHearts.push({ ox: Math.cos(angle) * dist, oy: Math.sin(angle) * dist - this.height/2, life: Math.random() * 0.5 + 0.5, maxLife: 1.0, size: (Math.random() * 8 + 8) * scaleFactor, });
                     }
-                    // For specific characters, add floating bananas as well as hearts.
+
+                    // <<<--- THIS IS THE SPECIAL LOGIC FOR GHOSTS/SPRINT MONKEYS GETTING BANANAS *AND* HEARTS
+                    // It is also preserved inside the "else" block.
                     if (['spirit', 'soul', 'ghoul', 'checkers', 'tako', 'ember'].includes(selectedCharacterKey)) {
                         this.attachedBananas.length = 0;
                         for (let i = 0; i < 5; i++) {
@@ -593,14 +607,30 @@
                     }
                 }
 
+                // <<<--- HANDLES THE BANANA COLLECTION
                 if (selectedGameMode === 'classic') {
                     consecutiveBananasCollected++;
                     const isNannersUnlocked = localStorage.getItem(NANNERS_UNLOCK_KEY) === 'true';
-                    if (consecutiveBananasCollected >= 15 && !isNannersUnlocked) { localStorage.setItem(NANNERS_UNLOCK_KEY, 'true'); if (!newlyUnlockedCharacters.find(c => c.name === CHARACTERS.nanners.name)) newlyUnlockedCharacters.push(CHARACTERS.nanners); }
                     const isPeeleyUnlocked = localStorage.getItem(PEELEY_UNLOCK_KEY) === 'true';
-                    if (consecutiveBananasCollected >= 30 && !isPeeleyUnlocked) { localStorage.setItem(PEELEY_UNLOCK_KEY, 'true'); if (!newlyUnlockedCharacters.find(c => c.name === CHARACTERS.peeley.name)) newlyUnlockedCharacters.push(CHARACTERS.peeley); }
                     const isBruiserUnlocked = localStorage.getItem(BRUISER_UNLOCK_KEY) === 'true';
-                    if (consecutiveBananasCollected >= 50 && !isBruiserUnlocked) { localStorage.setItem(BRUISER_UNLOCK_KEY, 'true'); if (!newlyUnlockedCharacters.find(c => c.name === CHARACTERS.bruiser.name)) newlyUnlockedCharacters.push(CHARACTERS.bruiser); }
+
+                    // This if/else if structure ensures only one character can be unlocked per game, in order.
+                    if (!isNannersUnlocked && consecutiveBananasCollected >= 15) {
+                        localStorage.setItem(NANNERS_UNLOCK_KEY, 'true');
+                        if (!newlyUnlockedCharacters.find(c => c.name === CHARACTERS.nanners.name)) {
+                            newlyUnlockedCharacters.push(CHARACTERS.nanners);
+                        }
+                    } else if (!isPeeleyUnlocked && consecutiveBananasCollected >= 30) {
+                        localStorage.setItem(PEELEY_UNLOCK_KEY, 'true');
+                        if (!newlyUnlockedCharacters.find(c => c.name === CHARACTERS.peeley.name)) {
+                            newlyUnlockedCharacters.push(CHARACTERS.peeley);
+                        }
+                    } else if (!isBruiserUnlocked && consecutiveBananasCollected >= 50) {
+                        localStorage.setItem(BRUISER_UNLOCK_KEY, 'true');
+                        if (!newlyUnlockedCharacters.find(c => c.name === CHARACTERS.bruiser.name)) {
+                            newlyUnlockedCharacters.push(CHARACTERS.bruiser);
+                        }
+                    }
                 }
             }
         };
@@ -1001,13 +1031,18 @@
             if (newScore <= 0) return { isNewHighScore: false, newUnlocks: [] };
             let newUnlocks = [];
             const oldHighest = getHighestNightScore();
+
             if (newScore > oldHighest) {
                 localStorage.setItem(NIGHT_HIGHEST_SCORE_KEY, Math.floor(newScore));
-                for (const key in CHARACTERS) {
-                    const char = CHARACTERS[key];
-                    if (char.unlockMode === 'night' && newScore >= char.unlock && oldHighest < char.unlock) {
-                        newUnlocks.push(char);
-                    }
+
+                // This new structure checks for unlocks one at a time, in order.
+                // It replaces the old 'for' loop.
+                if (newScore >= CHARACTERS.spirit.unlock && oldHighest < CHARACTERS.spirit.unlock) {
+                    newUnlocks.push(CHARACTERS.spirit);
+                } else if (newScore >= CHARACTERS.soul.unlock && oldHighest < CHARACTERS.soul.unlock) {
+                    newUnlocks.push(CHARACTERS.soul);
+                } else if (newScore >= CHARACTERS.ghoul.unlock && oldHighest < CHARACTERS.ghoul.unlock) {
+                    newUnlocks.push(CHARACTERS.ghoul);
                 }
             }
 
@@ -1373,9 +1408,10 @@
             const scrollThr=GAME_HEIGHT*0.4;if(monkey.y-scrollY<scrollThr){const s=(monkey.y-scrollY)-scrollThr;scrollY+=s;if (selectedGameMode !== 'sprint') score+=Math.floor(-s);} else if (selectedGameMode === 'sprint') { score = Math.max(score, Math.floor(-monkey.y)); }
             particles.forEach((p,i)=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.l-=dt;if(p.l<=0)particles.splice(i,1);});
             
+            // This loop handles recycling vines and spawning new bananas.
             vinePool.forEach((v, i) => {
                 if (v.isFalling) { v.y += VINE_FALL_SPEED * dt; }
-                if (v.y -scrollY > GAME_HEIGHT + 40) {
+                if (v.y - scrollY > GAME_HEIGHT + 40) {
                     if (selectedGameMode === 'sprint' && -v.y > sprintTargetHeight) {
                         return;
                     }
@@ -1388,15 +1424,25 @@
                     const bananaChance = selectedGameMode === 'sprint' ? SPRINT_BANANA_SPAWN_CHANCE : BANANA_SPAWN_CHANCE;
                     const canSpawnBanana = selectedGameMode !== 'sprint' || (sprintBananaCooldownTimer <= 0 && -v.y < sprintTargetHeight - 500);
                     if (currentProgress > 1000 && Math.random() < bananaChance && canSpawnBanana) {
-                         bananaPool.push({x: v.x + v.width/2, y: v.y - 50, isCollected: false});
+                        bananaPool.push({ x: v.x + v.width / 2, y: v.y - 50, isCollected: false });
                     }
                 }
             });
 
+            // --- THIS IS THE CORRECTED STREAK LOGIC ---
+            // It iterates backward through the bananas to safely remove them.
             for (let i = bananaPool.length - 1; i >= 0; i--) {
                 const b = bananaPool[i];
+
+                // First, check if the banana has scrolled off the bottom of the screen.
                 if (b.y - scrollY > GAME_HEIGHT + 40) {
-                    if (!b.isCollected && selectedGameMode !== 'sprint') consecutiveBananasCollected = 0;
+                    
+                    // If it's off-screen AND it was NOT collected, the streak is broken.
+                    if (!b.isCollected && selectedGameMode === 'classic') {
+                        consecutiveBananasCollected = 0;
+                    }
+                    
+                    // ALWAYS remove the banana from the game once it's off-screen.
                     bananaPool.splice(i, 1);
                 }
             }
@@ -1573,7 +1619,7 @@
 
             // 3. Set the maximum darkness of the unlit areas (0.0 to 1.0).
             // 1.0 is solid black. 0.85 is a good "toned-down" value.
-            const maxDarkness = isTouchDevice ? 0.90 : 0.95; // Less dark on mobile
+            const maxDarkness = isTouchDevice ? 0.93 : 0.95; // Less dark on mobile
 
             // --- End of adjustments ---
 
