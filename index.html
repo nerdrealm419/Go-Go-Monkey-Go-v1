@@ -1505,7 +1505,7 @@
 
             // 3. Set the maximum darkness of the unlit areas (0.0 to 1.0).
             // 1.0 is solid black. 0.85 is a good "toned-down" value.
-            const maxDarkness = isTouchDevice ? 0.80 : 0.95; // Less dark on mobile
+            const maxDarkness = isTouchDevice ? 0.90 : 0.95; // Less dark on mobile
 
             // --- End of adjustments ---
 
@@ -1766,80 +1766,109 @@
                 }
                 ctx.shadowBlur=0;
 
-                if(gameState === 'gameOver'){
-                    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,GAME_WIDTH,GAME_HEIGHT);
-                    if(isNewHighScore)drawBananaConfetti();
-
+                if (gameState === 'gameOver') {
+                    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                    if (isNewHighScore) drawBananaConfetti();
+                
                     const isSprintComplete = selectedGameMode === 'sprint' && finishLine.triggered;
                     const titleText = isSprintComplete ? "Summit Reached!" : "Game Over";
-                    ctx.fillStyle='white'; ctx.textAlign='center';
-                    ctx.font=`bold ${72 * scaleFactor}px sans-serif`; ctx.fillText(titleText, GAME_WIDTH/2, GAME_HEIGHT*0.15);
-                    
-                    let textY = GAME_HEIGHT * 0.25;
-
+                    ctx.fillStyle = 'white';
+                    ctx.textAlign = 'center';
+                    ctx.font = `bold ${72 * scaleFactor}px sans-serif`;
+                    const titleY = isTouchDevice ? GAME_HEIGHT * 0.10 : GAME_HEIGHT * 0.15;
+                    ctx.fillText(titleText, GAME_WIDTH / 2, titleY);
+                
+                    let textY = titleY + (isTouchDevice ? 60 * scaleFactor : 90 * scaleFactor);
+                
                     if (selectedGameMode === 'sprint') {
-                        ctx.font=`${40 * scaleFactor}px sans-serif`;
-                         if (isSprintComplete) {
-                            ctx.fillText(`Final Time: ${formatTime(finalTime)}`, GAME_WIDTH/2, textY);
+                        ctx.font = `${40 * scaleFactor}px sans-serif`;
+                        if (isSprintComplete) {
+                            ctx.fillText(`Final Time: ${formatTime(finalTime)}`, GAME_WIDTH / 2, textY);
                             textY += 60 * scaleFactor;
-                            if(isNewHighScore){ctx.font=`bold ${32 * scaleFactor}px sans-serif`;ctx.fillStyle='#66FF66';ctx.fillText('New Best Time!',GAME_WIDTH/2, textY); textY += 45 * scaleFactor;}
-                         } else {
+                            if (isNewHighScore) {
+                                ctx.font = `bold ${32 * scaleFactor}px sans-serif`;
+                                ctx.fillStyle = '#66FF66';
+                                ctx.fillText('New Best Time!', GAME_WIDTH / 2, textY);
+                                textY += 45 * scaleFactor;
+                            }
+                        } else {
                             ctx.font = `bold ${90 * scaleFactor}px sans-serif`;
                             ctx.shadowColor = 'red';
                             ctx.shadowBlur = 30;
                             ctx.strokeStyle = 'rgba(0,0,0,0.5)';
                             ctx.lineWidth = 2;
-                            ctx.strokeText('FAILED!', GAME_WIDTH/2, textY + 20);
+                            ctx.strokeText('FAILED!', GAME_WIDTH / 2, textY + 20);
                             ctx.fillStyle = '#FF4444';
-                            ctx.fillText('FAILED!', GAME_WIDTH/2, textY + 20);
+                            ctx.fillText('FAILED!', GAME_WIDTH / 2, textY + 20);
                             ctx.shadowBlur = 0;
                             textY += 80 * scaleFactor;
-                         }
-                         const unlockDisplayHeight = drawUnlockDisplay(textY); textY += unlockDisplayHeight;
-                         if (isNewHighScore || unlockDisplayHeight > 0) textY += 30 * scaleFactor;
-                         drawSprintHighScores(GAME_WIDTH/2, textY, sprintTargetHeight);
+                        }
+                        const unlockDisplayHeight = drawUnlockDisplay(textY);
+                        textY += unlockDisplayHeight;
+                        if (isNewHighScore || unlockDisplayHeight > 0) textY += 30 * scaleFactor;
+                        drawSprintHighScores(GAME_WIDTH / 2, textY, sprintTargetHeight);
                     } else { // Classic or Moonlight Climb
-                        ctx.font=`${40 * scaleFactor}px sans-serif`;
-                        const finalText = 'Final Score: '; const scoreNum = Math.floor(score);
-                        const textMetrics = ctx.measureText(finalText); const textWidth = textMetrics.width; const totalWidth = textWidth + ctx.measureText(scoreNum).width; const startX = GAME_WIDTH/2 - totalWidth/2;
-                        ctx.fillStyle = 'white'; ctx.textAlign = 'left'; ctx.fillText(finalText, startX, textY);
+                        ctx.font = `${40 * scaleFactor}px sans-serif`;
+                        const finalText = 'Final Score: ';
+                        const scoreNum = Math.floor(score);
+                        const textMetrics = ctx.measureText(finalText);
+                        const textWidth = textMetrics.width;
+                        const totalWidth = textWidth + ctx.measureText(scoreNum).width;
+                        const startX = GAME_WIDTH / 2 - totalWidth / 2;
+                        ctx.fillStyle = 'white';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(finalText, startX, textY);
                         let scoreColor = '#FFFFFF';
                         if (isNewHighScore) {
                             const scores = selectedGameMode === 'classic' ? getHighScores() : getNightHighScores();
-                            const rank = scores.indexOf(scoreNum); if (rank > -1) scoreColor = MEDAL_COLORS[rank] || '#FFD700'; else scoreColor = '#66FF66';
+                            const rank = scores.indexOf(scoreNum);
+                            if (rank > -1) scoreColor = MEDAL_COLORS[rank] || '#FFD700';
+                            else scoreColor = '#66FF66';
                         }
-                        ctx.fillStyle = scoreColor; ctx.fillText(scoreNum, startX + textWidth, textY); ctx.textAlign = 'center';
+                        ctx.fillStyle = scoreColor;
+                        ctx.fillText(scoreNum, startX + textWidth, textY);
+                        ctx.textAlign = 'center';
                         textY += 60 * scaleFactor;
-                        if(isNewHighScore){ctx.font=`bold ${32 * scaleFactor}px sans-serif`;ctx.fillStyle='#66FF66';ctx.fillText('New High Score!',GAME_WIDTH/2, textY); textY += 45 * scaleFactor;}
-                        
+                        if (isNewHighScore) {
+                            ctx.font = `bold ${32 * scaleFactor}px sans-serif`;
+                            ctx.fillStyle = '#66FF66';
+                            ctx.fillText('New High Score!', GAME_WIDTH / 2, textY);
+                            textY += 45 * scaleFactor;
+                        }
+                
                         if (selectedGameMode === 'classic') {
-                            const unlockDisplayHeight = drawUnlockDisplay(textY); textY += unlockDisplayHeight;
+                            const unlockDisplayHeight = drawUnlockDisplay(textY);
+                            textY += unlockDisplayHeight;
                             if (isNewHighScore || unlockDisplayHeight > 0) textY += 30 * scaleFactor;
-                            drawHighScores(GAME_WIDTH/2, textY);
+                            drawHighScores(GAME_WIDTH / 2, textY);
                         } else { // Night mode
-                            const unlockDisplayHeight = drawUnlockDisplay(textY); textY += unlockDisplayHeight;
+                            const unlockDisplayHeight = drawUnlockDisplay(textY);
+                            textY += unlockDisplayHeight;
                             if (isNewHighScore || unlockDisplayHeight > 0) textY += 30 * scaleFactor;
-                            drawNightHighScores(GAME_WIDTH/2, textY);
+                            drawNightHighScores(GAME_WIDTH / 2, textY);
                         }
                     }
-                    
-                    const btnW = 320 * scaleFactor, btnH = 65 * scaleFactor, spacing = 25 * scaleFactor;
+                
+                    const btnW = 320 * scaleFactor;
+                    const btnH = 65 * scaleFactor;
+                    const spacing = 25 * scaleFactor;
                     const totalBtnHeight = btnH * 2 + spacing;
-                    let btnY = GAME_HEIGHT - totalBtnHeight - (isTouchDevice ? 120 : 50);
-
-                    drawMenuButton("Continue", GAME_WIDTH / 2 - btnW / 2, btnY, btnW, btnH);
-                    menuButtons.gameOverContinue = { x: GAME_WIDTH / 2 - btnW / 2, y: btnY, w: btnW, h: btnH };
-
-                    btnY += btnH + spacing;
-                    
+                    const btnStartY = isTouchDevice ? GAME_HEIGHT - totalBtnHeight - 80 * scaleFactor : GAME_HEIGHT - totalBtnHeight - 50 * scaleFactor;
+                    const btnX = GAME_WIDTH / 2 - btnW / 2;
+                
+                    drawMenuButton("Continue", btnX, btnStartY, btnW, btnH);
+                    menuButtons.gameOverContinue = { x: btnX, y: btnStartY, w: btnW, h: btnH };
+                
+                    const backBtnY = btnStartY + btnH + spacing;
                     let backBtnText = "Back";
                     if (selectedGameMode === 'sprint') {
                         backBtnText = "Change Distance";
                     } else {
                         backBtnText = "Change Monkey";
                     }
-                    menuButtons.gameOverBack = drawBackButton(GAME_WIDTH / 2 - btnW / 2, btnY, btnW, btnH, backBtnText);
-                    
+                    menuButtons.gameOverBack = drawBackButton(btnX, backBtnY, btnW, btnH, backBtnText);
+                
                     drawMuteButton();
                 }
             }
