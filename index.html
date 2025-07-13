@@ -1436,7 +1436,11 @@
         function drawInGameInstructions() {
             if (!ingameInstructions.active) return;
             ctx.save(); ctx.globalAlpha = ingameInstructions.opacity; ctx.textAlign = 'center';
-            ctx.font = `bold ${32 * scaleFactor}px sans-serif`; ctx.fillStyle = 'white'; ctx.shadowColor = 'black'; ctx.shadowBlur = 8;
+            const fontSize = isTouchDevice ? 24 : 32;
+            ctx.font = `bold ${fontSize * scaleFactor}px sans-serif`; 
+            ctx.fillStyle = 'white'; 
+            ctx.shadowColor = 'black'; 
+            ctx.shadowBlur = 8;
             const instructionText = isTouchDevice ? "Tap & Hold Left/Right Side of Screen to Move!" : "Use A/D or Arrow Keys to Move!";
             ctx.fillText(instructionText, GAME_WIDTH/2, GAME_HEIGHT * 0.25);
             ctx.restore();
@@ -1746,10 +1750,10 @@
                 ctx.fillStyle='white';ctx.font=`bold ${40 * scaleFactor}px sans-serif`;ctx.textAlign='left';ctx.shadowColor='black';ctx.shadowBlur=5;
                 if (selectedGameMode === 'sprint') {
                     if (isTouchDevice) {
-                        // Mobile/Tablet: Time and Height stacked on the right
+                        // Mobile/Tablet: Time and Height stacked on the left
                         ctx.textAlign = 'left';
-                        ctx.fillText(`Time: ${formatTime(gameTime)}`, GAME_WIDTH - 20, 55);
-                        ctx.fillText(`Height: ${Math.floor(score)}m / ${sprintTargetHeight}m`, GAME_WIDTH - 20, 95);
+                        ctx.fillText(`Time: ${formatTime(gameTime)}`, 20, 55);
+                        ctx.fillText(`Height: ${Math.floor(score)}m / ${sprintTargetHeight}m`, 20, 95);
                     } else {
                         // Web: Time on left, Height on right, same line
                         ctx.textAlign = 'left';
