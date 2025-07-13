@@ -7,6 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <!-- END: Meta tags -->
     <title>Go! Go! Monkey, Go!</title>
     <style>
@@ -37,6 +38,23 @@
 
         const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         
+        // --- Splash Screen Assets ---
+        const splashImage = new Image();
+        let splashImageLoaded = false;
+        splashImage.src = 'https://nerdrealm419.github.io/Go-Go-Monkey-Go-v1/splash-screen.png';
+        splashImage.onload = () => { splashImageLoaded = true; };
+
+        // --- Splash Screen Animation ---
+        const SPLASH_FADE_TIME = 1.5; // Seconds for fade in/out
+        const SPLASH_HOLD_TIME = 2.0; // Seconds to hold the image
+        
+        // --- Flag to ensure splash screen only shows ONCE ---
+        
+        let isFirstLoad = true;
+        let splashPhase = 'fade-in'; // 'fade-in', 'hold', 'fade-out'
+        let splashTimer = 0;
+        let splashOpacity = 0;
+
         const MOBILE_CHAR_SELECT_SCALE = 0.9; 
 
         const MOBILE_SCALE_FACTOR = 1.1;
@@ -179,7 +197,7 @@
         }
 
         function ensureMusicIsPlaying() {
-            if (isMuted) {
+            if (isMuted || isFirstLoad) {
                 bgMusic.pause();
                 return;
             }
@@ -303,6 +321,7 @@
         }
 
         function handleInteraction(screenX, screenY) {
+
             const { x, y } = screenToCanvasCoords(screenX, screenY);
             
             if (['start', 'modeSelect', 'sprintSelect', 'characterSelect', 'gameOver'].includes(gameState)) {
@@ -1140,6 +1159,56 @@
             ctx.restore();
         }
         
+        function updateSplashScreen(dt) {
+            splashTimer += dt;
+            switch (splashPhase) {
+                case 'fade-in':
+                    splashOpacity = Math.min(1.0, splashTimer / SPLASH_FADE_TIME);
+                    if (splashTimer >= SPLASH_FADE_TIME) {
+                        splashPhase = 'hold';
+                        splashTimer = 0;
+                    }
+                    break;
+                case 'hold':
+                    if (splashTimer >= SPLASH_HOLD_TIME) {
+                        splashPhase = 'fade-out';
+                        splashTimer = 0;
+                    }
+                    break;
+                case 'fade-out':
+                    splashOpacity = Math.max(0.0, 1.0 - (splashTimer / SPLASH_FADE_TIME));
+                    if (splashTimer >= SPLASH_FADE_TIME) {
+                        isFirstLoad = false; // The splash is officially over
+                        init(); // Set up the main menu
+                        ensureMusicIsPlaying(); // Start the music now
+                    }
+                    break;
+            }
+        }
+
+        function renderSplashScreen() {
+            // Draw black background
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            if (splashImageLoaded) {
+                ctx.globalAlpha = splashOpacity; // Apply the current fade level
+
+                const imgW = splashImage.width;
+                const imgH = splashImage.height;
+                const aspect = imgW / imgH;
+                let drawW = GAME_WIDTH * 0.9;
+                let drawH = drawW / aspect;
+                if (drawH > GAME_HEIGHT * 0.9) {
+                    drawH = GAME_HEIGHT * 0.9;
+                    drawW = drawH * aspect;
+                }
+                ctx.drawImage(splashImage, (GAME_WIDTH - drawW) / 2, (GAME_HEIGHT - drawH) / 2, drawW, drawH);
+
+                ctx.globalAlpha = 1.0; // Reset for safety
+            }
+        }
+
         function init() {
             gameState = 'start';
             if (!animationFrameId) {
@@ -1682,6 +1751,31 @@
 
         function render() {
             ctx.clearRect(0,0,canvas.width,canvas.height);
+                // ADD THIS BLOCK TO THE TOP
+                if (isFirstLoad) {
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+                    if (splashImageLoaded) {
+                        const imgW = splashImage.width;
+                        const imgH = splashImage.height;
+                        const aspect = imgW / imgH;
+                        let drawW = GAME_WIDTH * 0.9;
+                        let drawH = drawW / aspect;
+                        if (drawH > GAME_HEIGHT * 0.9) {
+                            drawH = GAME_HEIGHT * 0.9;
+                            drawW = drawH * aspect;
+                        }
+                        ctx.drawImage(splashImage, (GAME_WIDTH - drawW) / 2, (GAME_HEIGHT - drawH) / 2, drawW, drawH);
+                    }
+                    ctx.fillStyle = 'white';
+                    ctx.textAlign = 'center';
+                    ctx.font = `bold ${28 * scaleFactor}px sans-serif`;
+                    ctx.shadowColor = 'black';
+                    ctx.shadowBlur = 5;
+                    ctx.fillText('Click or Tap to Continue', GAME_WIDTH / 2, GAME_HEIGHT - 80);
+                    ctx.shadowBlur = 0;
+                    return; // This is critical
+                } 
 
             if (gameState === 'start') {
                 skySystem.draw(0.25);
@@ -1874,18 +1968,29 @@
         }
 
         function loop(timestamp) {
-            dt=Math.min(0.1,(timestamp-lastTime)/1000); lastTime=timestamp;
-            update();
-            if(gameState==='gameOver' && isNewHighScore)updateConfetti(dt);
-            render();
-            animationFrameId=requestAnimationFrame(loop);
+            dt = Math.min(0.1, (timestamp - lastTime) / 1000);
+            lastTime = timestamp;
+
+            if (isFirstLoad) {
+                // If it's the first load, only run the splash screen logic
+                updateSplashScreen(dt);
+                renderSplashScreen();
+            } else {
+                // Otherwise, run the normal game logic
+                update();
+                if (gameState === 'gameOver' && isNewHighScore) updateConfetti(dt);
+                render();
+            }
+
+            animationFrameId = requestAnimationFrame(loop);
         }
         
         migrateOldScores(); // Run the one-time migration
         resize();
         loadMuteState();
         checkUnlocks();
-        init();
+        lastTime = performance.now();
+        loop(lastTime);
     });
     </script>
 </body>
